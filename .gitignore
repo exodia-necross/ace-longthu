@@ -4,3 +4,4 @@ node_modules
 .env.local
 *.log
 ace-badminton-report.xlsx
+tsconfig.tsbuildinfo

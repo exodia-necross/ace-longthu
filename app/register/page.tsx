@@ -6,11 +6,66 @@ import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-const eventTypes = ["Đơn nam", "Đơn nữ", "Đôi nam", "Đôi nữ", "Đôi nam nữ"];
+const tournamentId = "00000000-0000-0000-0000-000000000001";
+
+const levels = [
+  ["beginner", "Mới chơi"],
+  ["intermediate", "Trung bình"],
+  ["advanced", "Khá"],
+  ["expert", "Giỏi"]
+];
+
+const eventTypes = [
+  ["mens_single", "Đơn nam"],
+  ["womens_single", "Đơn nữ"],
+  ["mens_double", "Đôi nam"],
+  ["womens_double", "Đôi nữ"],
+  ["mixed_double", "Đôi nam nữ"]
+];
 
 export default function RegisterPage() {
   const [submitted, setSubmitted] = useState(false);
   const [hasPartner, setHasPartner] = useState("Không");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      tournamentId,
+      fullName: String(formData.get("fullName") ?? ""),
+      birthDate: String(formData.get("birthDate") ?? ""),
+      gender: String(formData.get("gender") ?? ""),
+      phone: String(formData.get("phone") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      address: String(formData.get("address") ?? ""),
+      level: String(formData.get("level") ?? "intermediate"),
+      dominantHand: String(formData.get("dominantHand") ?? "Tay phải"),
+      eventType: String(formData.get("eventType") ?? "mens_single"),
+      hasPartner: hasPartner === "Có",
+      partnerName: String(formData.get("partnerName") ?? ""),
+      note: String(formData.get("note") ?? "")
+    };
+
+    try {
+      const response = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Không thể gửi đăng ký");
+      setSubmitted(true);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Không thể gửi đăng ký");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <PageShell>
@@ -22,26 +77,27 @@ export default function RegisterPage() {
             <Card className="mt-6 text-center">
               <CheckCircle2 className="mx-auto size-12 text-court-green" />
               <h2 className="mt-3 text-2xl font-bold">Đăng ký thành công</h2>
-              <p className="mt-2 text-mutedForeground">Hệ thống đã ghi nhận đăng ký mẫu. Khi kết nối Supabase, form này sẽ lưu vào database và gửi email xác nhận.</p>
+              <p className="mt-2 text-mutedForeground">Hệ thống đã lưu đăng ký. Ban tổ chức sẽ duyệt trước khi hiển thị công khai.</p>
             </Card>
           ) : (
             <Card className="mt-6">
-              <form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); setSubmitted(true); }}>
+              <form className="grid gap-4" onSubmit={handleSubmit}>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-semibold">Họ tên<input required className="h-10 rounded-md border border-border px-3 dark:bg-white/5" /></label>
-                  <label className="grid gap-2 text-sm font-semibold">Ngày sinh<input required type="date" className="h-10 rounded-md border border-border px-3 dark:bg-white/5" /></label>
-                  <label className="grid gap-2 text-sm font-semibold">Giới tính<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5"><option>Nam</option><option>Nữ</option><option>Khác</option></select></label>
-                  <label className="grid gap-2 text-sm font-semibold">Số điện thoại<input required className="h-10 rounded-md border border-border px-3 dark:bg-white/5" /></label>
-                  <label className="grid gap-2 text-sm font-semibold">Email<input required type="email" className="h-10 rounded-md border border-border px-3 dark:bg-white/5" /></label>
-                  <label className="grid gap-2 text-sm font-semibold">Địa chỉ<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" /></label>
-                  <label className="grid gap-2 text-sm font-semibold">Trình độ<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5"><option>Mới chơi</option><option>Trung bình</option><option>Khá</option><option>Giỏi</option></select></label>
-                  <label className="grid gap-2 text-sm font-semibold">Tay thuận<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5"><option>Tay phải</option><option>Tay trái</option></select></label>
+                  <label className="grid gap-2 text-sm font-semibold">Họ tên<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="fullName" required /></label>
+                  <label className="grid gap-2 text-sm font-semibold">Ngày sinh<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="birthDate" required type="date" /></label>
+                  <label className="grid gap-2 text-sm font-semibold">Giới tính<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="gender"><option>Nam</option><option>Nữ</option><option>Khác</option></select></label>
+                  <label className="grid gap-2 text-sm font-semibold">Số điện thoại<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="phone" required /></label>
+                  <label className="grid gap-2 text-sm font-semibold">Email<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="email" required type="email" /></label>
+                  <label className="grid gap-2 text-sm font-semibold">Địa chỉ<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="address" /></label>
+                  <label className="grid gap-2 text-sm font-semibold">Trình độ<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="level">{levels.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                  <label className="grid gap-2 text-sm font-semibold">Tay thuận<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="dominantHand"><option>Tay phải</option><option>Tay trái</option></select></label>
                 </div>
-                <label className="grid gap-2 text-sm font-semibold">Nội dung đăng ký<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5">{eventTypes.map((item) => <option key={item}>{item}</option>)}</select></label>
+                <label className="grid gap-2 text-sm font-semibold">Nội dung đăng ký<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="eventType">{eventTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                 <label className="grid gap-2 text-sm font-semibold">Có bạn đánh cặp sẵn không<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" onChange={(event) => setHasPartner(event.target.value)} value={hasPartner}><option>Có</option><option>Không</option></select></label>
-                {hasPartner === "Có" && <label className="grid gap-2 text-sm font-semibold">Tên người đánh cặp<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" /></label>}
-                <label className="grid gap-2 text-sm font-semibold">Ghi chú<textarea className="min-h-28 rounded-md border border-border p-3 dark:bg-white/5" /></label>
-                <Button className="mt-2 w-full" type="submit">Gửi đăng ký</Button>
+                {hasPartner === "Có" && <label className="grid gap-2 text-sm font-semibold">Tên người đánh cặp<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="partnerName" /></label>}
+                <label className="grid gap-2 text-sm font-semibold">Ghi chú<textarea className="min-h-28 rounded-md border border-border p-3 dark:bg-white/5" name="note" /></label>
+                {error && <p className="rounded-md bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
+                <Button className="mt-2 w-full" disabled={loading} type="submit">{loading ? "Đang gửi..." : "Gửi đăng ký"}</Button>
               </form>
             </Card>
           )}

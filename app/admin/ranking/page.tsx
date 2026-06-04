@@ -1,8 +1,10 @@
 import { AdminShell } from "@/components/admin-shell";
 import { Card } from "@/components/ui/card";
-import { rankings } from "@/lib/mock-data";
+import { getAdminRankings } from "@/lib/admin-data";
 
-export default function AdminRankingPage() {
+export default async function AdminRankingPage() {
+  const rankings = await getAdminRankings();
+
   return (
     <AdminShell title="Bảng xếp hạng">
       <Card className="mt-6 overflow-hidden p-0">
@@ -15,6 +17,11 @@ export default function AdminRankingPage() {
               <tr>{["Hạng", "Đội", "Số trận", "Thắng", "Thua", "Hiệu số", "Điểm"].map((item) => <th className="px-4 py-3" key={item}>{item}</th>)}</tr>
             </thead>
             <tbody>
+              {rankings.length === 0 && (
+                <tr>
+                  <td className="px-4 py-8 text-center text-mutedForeground" colSpan={7}>Chưa có dữ liệu xếp hạng.</td>
+                </tr>
+              )}
               {rankings.map((row) => (
                 <tr className="border-t border-border" key={row.team}>
                   <td className="px-4 py-3 font-black text-court-blue">#{row.rank}</td>

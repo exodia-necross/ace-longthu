@@ -1,9 +1,11 @@
 import { AdminShell } from "@/components/admin-shell";
 import { Card } from "@/components/ui/card";
-import { matches } from "@/lib/mock-data";
+import { getAdminMatches } from "@/lib/admin-data";
 import { formatDate, formatTime } from "@/lib/utils";
 
-export default function AdminSchedulePage() {
+export default async function AdminSchedulePage() {
+  const matches = await getAdminMatches();
+
   return (
     <AdminShell title="Quản lý lịch thi đấu">
       <Card className="mt-6 overflow-hidden p-0">
@@ -14,9 +16,14 @@ export default function AdminSchedulePage() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="bg-muted">
-              <tr>{["Mã", "Ngày", "Giờ", "Sân", "Trận", "Nội dung", "Trạng thái", "Thao tác"].map((item) => <th className="px-4 py-3" key={item}>{item}</th>)}</tr>
+              <tr>{["Mã", "Ngày", "Giờ", "Sân", "Trận", "Nội dung", "Trạng thái"].map((item) => <th className="px-4 py-3" key={item}>{item}</th>)}</tr>
             </thead>
             <tbody>
+              {matches.length === 0 && (
+                <tr>
+                  <td className="px-4 py-8 text-center text-mutedForeground" colSpan={7}>Chưa có lịch thi đấu.</td>
+                </tr>
+              )}
               {matches.map((match) => (
                 <tr className="border-t border-border" key={match.id}>
                   <td className="px-4 py-3 font-bold">{match.code}</td>
@@ -26,7 +33,6 @@ export default function AdminSchedulePage() {
                   <td className="px-4 py-3">{match.homeTeam} vs {match.awayTeam}</td>
                   <td className="px-4 py-3">{match.eventType}</td>
                   <td className="px-4 py-3">{match.status}</td>
-                  <td className="px-4 py-3"><button className="rounded-md border border-border px-3 py-1 font-semibold">Sửa</button></td>
                 </tr>
               ))}
             </tbody>

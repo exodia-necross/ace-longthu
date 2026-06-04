@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { matches, players, rankings, teams } from "@/lib/mock-data";
+import { getAdminMatches, getAdminPlayers, getAdminRankings, getAdminTeams } from "@/lib/admin-data";
 
 function toCsv(rows: Record<string, unknown>[]) {
   const headers = Object.keys(rows[0] ?? {});
@@ -11,6 +11,10 @@ function toCsv(rows: Record<string, unknown>[]) {
 
 export async function GET(request: Request) {
   const type = new URL(request.url).searchParams.get("type") ?? "players";
+  const players = await getAdminPlayers();
+  const teams = await getAdminTeams();
+  const matches = await getAdminMatches();
+  const rankings = await getAdminRankings();
   const data = {
     players,
     teams,
