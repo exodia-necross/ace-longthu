@@ -63,6 +63,11 @@ export type AdminMatch = {
   winner?: string;
 };
 
+export type AdminCourt = {
+  id: string;
+  name: string;
+};
+
 export type AdminTournament = {
   id: string;
   name: string;
@@ -222,6 +227,30 @@ export async function getAdminTeams(): Promise<Team[]> {
     status: team.status === "approved" || team.status === "Đủ điều kiện" ? "Đủ điều kiện" : team.status === "paused" ? "Tạm dừng" : "Chờ ghép",
     members: (team.team_members ?? []).map((member: any) => member.players?.full_name).filter(Boolean)
   }));
+}
+
+export async function getAdminCourts(): Promise<AdminCourt[]> {
+  if (!hasSupabaseAdminConfig()) {
+    return [
+      { id: "court-1", name: "Sân 1" },
+      { id: "court-2", name: "Sân 2" },
+      { id: "court-3", name: "Sân 3" }
+    ];
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("courts")
+    .select("id,name")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Failed to load courts", error);
+    return [];
+  }
+
+  return (data ?? []) as AdminCourt[];
 }
 
 export async function getAdminMatches(): Promise<AdminMatch[]> {
