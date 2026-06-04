@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createServerSupabaseClient, hasSupabaseConfig } from "@/lib/supabase";
+import { hasSupabaseConfig } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 const registrationSchema = z.object({
   fullName: z.string().min(2),

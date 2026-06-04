@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
 
 export function AdminLoginForm() {
