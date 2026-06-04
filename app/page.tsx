@@ -40,7 +40,7 @@ export default async function HomePage() {
 
       <section className="container-page grid gap-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={CalendarDays} label="Ngày khai mạc" value={formatDate(tournament.startsAt)} />
-        <StatCard icon={MapPin} label="Địa điểm" value="ACE Sports" />
+        <StatCard icon={MapPin} label="Địa điểm" value={tournament.venue || "Chưa cập nhật"} />
         <StatCard icon={Users} label="VĐV đăng ký" value={players.length} />
         <StatCard icon={Trophy} label="Trận đã lên lịch" value={matches.length} />
       </section>
