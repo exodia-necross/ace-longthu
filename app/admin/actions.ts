@@ -156,7 +156,7 @@ type PairingPlayerRow = {
   full_name: string;
   gender: string;
   level: "beginner" | "intermediate" | "advanced" | "expert";
-  event_type: "mens_single" | "womens_single" | "mens_double" | "womens_double" | "mixed_double";
+  event_type: string;
   partner_name: string | null;
 };
 
@@ -171,58 +171,38 @@ function teamNameFor(players: PairingPlayerRow[]) {
   return players.map((player) => player.full_name.split(" ").at(-1) ?? player.full_name).join(" / ");
 }
 
-function groupBy<T, K extends string>(items: T[], getKey: (item: T) => K) {
-  return items.reduce<Record<K, T[]>>((groups, item) => {
-    const key = getKey(item);
-    groups[key] = groups[key] ?? [];
-    groups[key].push(item);
-    return groups;
-  }, {} as Record<K, T[]>);
-}
-
 function pairPlayers(players: PairingPlayerRow[]) {
-  const grouped = groupBy(players, (player) => player.event_type);
-  const teams: Array<{ eventType: PairingPlayerRow["event_type"]; members: PairingPlayerRow[]; status: string; name: string }> = [];
+  const teams: Array<{ eventType: string; members: PairingPlayerRow[]; status: string; name: string }> = [];
+  const used = new Set<string>();
+  const orderedPlayers = [...players].sort((a, b) => levelScore[a.level] - levelScore[b.level]);
 
-  for (const [eventType, eventPlayers] of Object.entries(grouped) as Array<[PairingPlayerRow["event_type"], PairingPlayerRow[]]>) {
-    const used = new Set<string>();
-    const isSingle = eventType === "mens_single" || eventType === "womens_single";
+  for (const player of orderedPlayers) {
+    if (used.has(player.id)) continue;
 
-    if (isSingle) {
-      for (const player of eventPlayers) {
-        teams.push({ eventType, members: [player], status: "approved", name: player.full_name });
-      }
+    const requestedPartner = orderedPlayers.find(
+      (candidate) =>
+        candidate.id !== player.id &&
+        !used.has(candidate.id) &&
+        candidate.full_name === player.partner_name
+    );
+
+    if (requestedPartner) {
+      used.add(player.id);
+      used.add(requestedPartner.id);
+      teams.push({ eventType: "Tự do", members: [player, requestedPartner], status: "approved", name: teamNameFor([player, requestedPartner]) });
       continue;
     }
 
-    for (const player of eventPlayers) {
-      if (used.has(player.id)) continue;
+    const partner = orderedPlayers
+      .filter((candidate) => candidate.id !== player.id && !used.has(candidate.id))
+      .sort((a, b) => Math.abs(levelScore[a.level] - levelScore[player.level]) - Math.abs(levelScore[b.level] - levelScore[player.level]))[0];
 
-      const requestedPartner = eventPlayers.find(
-        (candidate) =>
-          candidate.id !== player.id &&
-          !used.has(candidate.id) &&
-          candidate.full_name === player.partner_name
-      );
-
-      if (requestedPartner) {
-        used.add(player.id);
-        used.add(requestedPartner.id);
-        teams.push({ eventType, members: [player, requestedPartner], status: "approved", name: teamNameFor([player, requestedPartner]) });
-        continue;
-      }
-
-      const partner = eventPlayers
-        .filter((candidate) => candidate.id !== player.id && !used.has(candidate.id))
-        .sort((a, b) => Math.abs(levelScore[a.level] - levelScore[player.level]) - Math.abs(levelScore[b.level] - levelScore[player.level]))[0];
-
-      used.add(player.id);
-      if (partner) {
-        used.add(partner.id);
-        teams.push({ eventType, members: [player, partner], status: "approved", name: teamNameFor([player, partner]) });
-      } else {
-        teams.push({ eventType, members: [player], status: "pending", name: player.full_name });
-      }
+    used.add(player.id);
+    if (partner) {
+      used.add(partner.id);
+      teams.push({ eventType: "Tự do", members: [player, partner], status: "approved", name: teamNameFor([player, partner]) });
+    } else {
+      teams.push({ eventType: "Tự do", members: [player], status: "pending", name: player.full_name });
     }
   }
 
@@ -298,7 +278,7 @@ export async function createManualTeam(formData: FormData) {
   if (!hasSupabaseAdminConfig()) return;
 
   const name = String(formData.get("name") ?? "").trim();
-  const eventType = String(formData.get("eventType") ?? "mens_double");
+  const eventType = String(formData.get("eventType") ?? "Tự do").trim() || "Tự do";
   const status = String(formData.get("status") ?? "approved");
   const playerIds = formData.getAll("playerIds").map(String).filter(Boolean);
 
@@ -387,30 +367,28 @@ export async function generateRoundRobinMatches() {
 
   await supabase.from("matches").delete().eq("tournament_id", tournament.id);
 
-  const grouped = groupBy(teams ?? [], (team) => team.event_type as string);
   const inserts = [];
   let slot = 0;
   let count = 1;
   const startAt = new Date(tournament.starts_at);
+  const eventTeams = teams ?? [];
 
-  for (const [eventType, eventTeams] of Object.entries(grouped)) {
-    for (let i = 0; i < eventTeams.length; i += 1) {
-      for (let j = i + 1; j < eventTeams.length; j += 1) {
-        const court = courts[slot % courts.length];
-        const startsAt = new Date(startAt.getTime() + slot * 45 * 60 * 1000);
-        inserts.push({
-          tournament_id: tournament.id,
-          code: `RR-${String(count).padStart(3, "0")}`,
-          event_type: eventType,
-          court_id: court.id,
-          home_team_id: eventTeams[i].id,
-          away_team_id: eventTeams[j].id,
-          starts_at: startsAt.toISOString(),
-          status: "scheduled"
-        });
-        slot += 1;
-        count += 1;
-      }
+  for (let i = 0; i < eventTeams.length; i += 1) {
+    for (let j = i + 1; j < eventTeams.length; j += 1) {
+      const court = courts[slot % courts.length];
+      const startsAt = new Date(startAt.getTime() + slot * 45 * 60 * 1000);
+      inserts.push({
+        tournament_id: tournament.id,
+        code: `RR-${String(count).padStart(3, "0")}`,
+        event_type: "Tự do",
+        court_id: court.id,
+        home_team_id: eventTeams[i].id,
+        away_team_id: eventTeams[j].id,
+        starts_at: startsAt.toISOString(),
+        status: "scheduled"
+      });
+      slot += 1;
+      count += 1;
     }
   }
 
@@ -430,6 +408,7 @@ export async function createManualMatch(formData: FormData) {
   const courtId = String(formData.get("courtId") ?? "");
   const startsAt = String(formData.get("startsAt") ?? "");
   const code = String(formData.get("code") ?? "").trim();
+  const eventType = String(formData.get("eventType") ?? "Tự do").trim() || "Tự do";
 
   if (!homeTeamId || !awayTeamId || !courtId || !startsAt || homeTeamId === awayTeamId) return;
 
@@ -445,13 +424,12 @@ export async function createManualMatch(formData: FormData) {
   const homeTeam = selectedTeams.find((team) => team.id === homeTeamId);
   const awayTeam = selectedTeams.find((team) => team.id === awayTeamId);
   if (!homeTeam || !awayTeam) throw new Error("Đội không hợp lệ.");
-  if (homeTeam.event_type !== awayTeam.event_type) throw new Error("Hai đội phải cùng nội dung thi đấu.");
 
   const matchCode = code || `MAN-${Date.now().toString().slice(-6)}`;
   const { error } = await supabase.from("matches").insert({
     tournament_id: homeTeam.tournament_id,
     code: matchCode,
-    event_type: homeTeam.event_type,
+    event_type: eventType,
     court_id: courtId,
     home_team_id: homeTeamId,
     away_team_id: awayTeamId,

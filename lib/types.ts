@@ -1,5 +1,5 @@
 export type SkillLevel = "Mới chơi" | "Trung bình" | "Khá" | "Giỏi";
-export type EventType = "Đơn nam" | "Đơn nữ" | "Đôi nam" | "Đôi nữ" | "Đôi nam nữ";
+export type EventType = string;
 export type PlayerStatus = "Chờ duyệt" | "Đã duyệt" | "Từ chối";
 export type MatchStatus = "Sắp diễn ra" | "Đang thi đấu" | "Đã kết thúc";
 

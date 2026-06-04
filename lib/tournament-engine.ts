@@ -8,7 +8,9 @@ const levelScore = {
 };
 
 export function autoPairPlayers(players: Player[]): Team[] {
-  const approved = players.filter((player) => player.status === "Đã duyệt");
+  const approved = players
+    .filter((player) => player.status === "Đã duyệt")
+    .sort((a, b) => levelScore[a.level] - levelScore[b.level]);
   const teams: Team[] = [];
   const used = new Set<string>();
 
@@ -18,8 +20,7 @@ export function autoPairPlayers(players: Player[]): Team[] {
     const requestedPartner = approved.find(
       (candidate) =>
         candidate.fullName === player.partnerName &&
-        candidate.partnerName === player.fullName &&
-        candidate.eventType === player.eventType
+        candidate.partnerName === player.fullName
     );
 
     if (requestedPartner && !used.has(requestedPartner.id)) {
@@ -29,7 +30,7 @@ export function autoPairPlayers(players: Player[]): Team[] {
         id: `team-${teams.length + 1}`,
         name: `${player.fullName.split(" ").at(-1)} / ${requestedPartner.fullName.split(" ").at(-1)}`,
         members: [player.fullName, requestedPartner.fullName],
-        eventType: player.eventType,
+        eventType: "Tự do",
         status: "Đủ điều kiện"
       });
       continue;
@@ -37,7 +38,6 @@ export function autoPairPlayers(players: Player[]): Team[] {
 
     const partner = approved
       .filter((candidate) => candidate.id !== player.id && !used.has(candidate.id))
-      .filter((candidate) => candidate.eventType === player.eventType && candidate.gender === player.gender)
       .sort((a, b) => Math.abs(levelScore[a.level] - levelScore[player.level]) - Math.abs(levelScore[b.level] - levelScore[player.level]))[0];
 
     used.add(player.id);
@@ -47,7 +47,7 @@ export function autoPairPlayers(players: Player[]): Team[] {
         id: `team-${teams.length + 1}`,
         name: `${player.fullName.split(" ").at(-1)} / ${partner.fullName.split(" ").at(-1)}`,
         members: [player.fullName, partner.fullName],
-        eventType: player.eventType,
+        eventType: "Tự do",
         status: "Đủ điều kiện"
       });
     } else {
@@ -55,7 +55,7 @@ export function autoPairPlayers(players: Player[]): Team[] {
         id: `team-${teams.length + 1}`,
         name: player.fullName,
         members: [player.fullName],
-        eventType: player.eventType,
+        eventType: "Tự do",
         status: "Chờ ghép"
       });
     }
@@ -76,7 +76,7 @@ export function generateRoundRobinSchedule(teams: Team[], startAt: Date, courts:
         code: `RR-${String(matches.length + 1).padStart(3, "0")}`,
         startsAt: startsAt.toISOString(),
         court: courts[slot % courts.length],
-        eventType: teams[i].eventType,
+        eventType: "Tự do",
         homeTeam: teams[i].name,
         awayTeam: teams[j].name,
         status: "Sắp diễn ra"

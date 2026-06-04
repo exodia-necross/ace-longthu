@@ -23,7 +23,7 @@ export default async function AdminMembersPage() {
           <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="bg-muted">
               <tr>
-                {["Họ tên", "Email", "Giới tính", "Trình độ", "Nội dung", "Trạng thái", "Thao tác"].map((item) => (
+                {["Họ tên", "Email", "Giới tính", "Trình độ", "Trạng thái", "Thao tác"].map((item) => (
                   <th className="px-4 py-3" key={item}>{item}</th>
                 ))}
               </tr>
@@ -31,7 +31,7 @@ export default async function AdminMembersPage() {
             <tbody>
               {players.length === 0 && (
                 <tr>
-                  <td className="px-4 py-8 text-center text-mutedForeground" colSpan={7}>Chưa có vận động viên đăng ký.</td>
+                  <td className="px-4 py-8 text-center text-mutedForeground" colSpan={6}>Chưa có vận động viên đăng ký.</td>
                 </tr>
               )}
               {players.map((player) => {
@@ -44,7 +44,6 @@ export default async function AdminMembersPage() {
                     <td className="px-4 py-3">{player.email}</td>
                     <td className="px-4 py-3">{player.gender}</td>
                     <td className="px-4 py-3">{player.level}</td>
-                    <td className="px-4 py-3">{player.eventType}</td>
                     <td className="px-4 py-3">
                       <span className={
                         isApproved

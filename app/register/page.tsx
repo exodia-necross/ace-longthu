@@ -15,14 +15,6 @@ const levels = [
   ["expert", "Giỏi"]
 ];
 
-const eventTypes = [
-  ["mens_single", "Đơn nam"],
-  ["womens_single", "Đơn nữ"],
-  ["mens_double", "Đôi nam"],
-  ["womens_double", "Đôi nữ"],
-  ["mixed_double", "Đôi nam nữ"]
-];
-
 export default function RegisterPage() {
   const [submitted, setSubmitted] = useState(false);
   const [hasPartner, setHasPartner] = useState("Không");
@@ -83,7 +75,6 @@ export default function RegisterPage() {
                   <label className="grid gap-2 text-sm font-semibold">Trình độ<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="level">{levels.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                   <label className="grid gap-2 text-sm font-semibold">Tay thuận<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="dominantHand"><option>Tay phải</option><option>Tay trái</option></select></label>
                 </div>
-                <label className="grid gap-2 text-sm font-semibold">Nội dung đăng ký<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="eventType">{eventTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                 <label className="grid gap-2 text-sm font-semibold">Có bạn đánh cặp sẵn không<select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" onChange={(event) => setHasPartner(event.target.value)} value={hasPartner}><option>Có</option><option>Không</option></select></label>
                 {hasPartner === "Có" && <label className="grid gap-2 text-sm font-semibold">Tên người đánh cặp<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="partnerName" /></label>}
                 <label className="grid gap-2 text-sm font-semibold">Ghi chú<textarea className="min-h-28 rounded-md border border-border p-3 dark:bg-white/5" name="note" /></label>

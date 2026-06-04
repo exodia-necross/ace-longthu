@@ -17,23 +17,28 @@ export default async function AdminSchedulePage() {
       <div className="mt-6 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <Card>
           <h3 className="text-xl font-bold">Thêm trận thủ công</h3>
+          <p className="mt-2 text-sm text-mutedForeground">Có thể chọn bất kỳ đội/cặp nào gặp nhau, không cần cùng loại đơn/đôi/nam/nữ.</p>
           <form action={createManualMatch} className="mt-4 grid gap-4">
             <label className="grid gap-2 text-sm font-semibold">
               Mã trận
               <input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="code" placeholder="Tự sinh nếu bỏ trống" />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
+              Nhãn trận
+              <input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="eventType" placeholder="Ví dụ: Kèo tự do, Vòng bảng, Trình khá..." defaultValue="Tự do" />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold">
               Đội A
               <select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="homeTeamId" required>
                 <option value="">Chọn đội A</option>
-                {eligibleTeams.map((team) => <option key={team.id} value={team.id}>{team.name} - {team.eventType}</option>)}
+                {eligibleTeams.map((team) => <option key={team.id} value={team.id}>{team.name} - {team.members.join(" / ")}</option>)}
               </select>
             </label>
             <label className="grid gap-2 text-sm font-semibold">
               Đội B
               <select className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="awayTeamId" required>
                 <option value="">Chọn đội B</option>
-                {eligibleTeams.map((team) => <option key={team.id} value={team.id}>{team.name} - {team.eventType}</option>)}
+                {eligibleTeams.map((team) => <option key={team.id} value={team.id}>{team.name} - {team.members.join(" / ")}</option>)}
               </select>
             </label>
             <label className="grid gap-2 text-sm font-semibold">
@@ -54,13 +59,13 @@ export default async function AdminSchedulePage() {
         <Card className="overflow-hidden p-0">
           <div className="flex flex-wrap gap-3 border-b border-border p-4">
             <form action={generateRoundRobinMatches}>
-              <button className="rounded-md bg-court-blue px-4 py-2 text-sm font-bold text-white">Sinh lịch tự động</button>
+              <button className="rounded-md bg-court-blue px-4 py-2 text-sm font-bold text-white">Sinh lịch tự động tự do</button>
             </form>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[880px] text-left text-sm">
               <thead className="bg-muted">
-                <tr>{["Mã", "Ngày", "Giờ", "Sân", "Trận", "Nội dung", "Trạng thái", "Thao tác"].map((item) => <th className="px-4 py-3" key={item}>{item}</th>)}</tr>
+                <tr>{["Mã", "Ngày", "Giờ", "Sân", "Trận", "Nhãn", "Trạng thái", "Thao tác"].map((item) => <th className="px-4 py-3" key={item}>{item}</th>)}</tr>
               </thead>
               <tbody>
                 {matches.length === 0 && (

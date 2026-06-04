@@ -33,7 +33,6 @@ export default async function PlayersPage() {
                 <div>
                   <h2 className="font-bold">{player.fullName}</h2>
                   <p className="text-sm text-mutedForeground">{player.gender} - {player.level}</p>
-                  <p className="mt-2 text-sm font-semibold text-court-blue">{player.eventType}</p>
                   <span className="mt-3 inline-flex rounded-md bg-muted px-2 py-1 text-xs">{player.status}</span>
                 </div>
               </div>

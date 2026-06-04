@@ -3,7 +3,6 @@ create extension if not exists "uuid-ossp";
 create type public.user_role as enum ('admin', 'organizer');
 create type public.player_status as enum ('pending', 'approved', 'rejected');
 create type public.skill_level as enum ('beginner', 'intermediate', 'advanced', 'expert');
-create type public.event_type as enum ('mens_single', 'womens_single', 'mens_double', 'womens_double', 'mixed_double');
 create type public.match_status as enum ('scheduled', 'live', 'completed', 'cancelled');
 
 create table public.users (
@@ -40,7 +39,7 @@ create table public.players (
   address text,
   level public.skill_level not null,
   dominant_hand text not null,
-  event_type public.event_type not null,
+  event_type text not null default 'free',
   has_partner boolean not null default false,
   partner_name text,
   note text,
@@ -54,7 +53,7 @@ create table public.teams (
   id uuid primary key default uuid_generate_v4(),
   tournament_id uuid not null references public.tournaments(id) on delete cascade,
   name text not null,
-  event_type public.event_type not null,
+  event_type text not null default 'Tự do',
   status text not null default 'pending',
   created_at timestamptz not null default now()
 );
@@ -84,7 +83,7 @@ create table public.matches (
   id uuid primary key default uuid_generate_v4(),
   tournament_id uuid not null references public.tournaments(id) on delete cascade,
   code text not null unique,
-  event_type public.event_type not null,
+  event_type text not null default 'Tự do',
   court_id uuid references public.courts(id),
   home_team_id uuid not null references public.teams(id),
   away_team_id uuid not null references public.teams(id),

@@ -14,7 +14,8 @@ const events: Record<string, EventType> = {
   womens_single: "Đơn nữ",
   mens_double: "Đôi nam",
   womens_double: "Đôi nữ",
-  mixed_double: "Đôi nam nữ"
+  mixed_double: "Đôi nam nữ",
+  free: "Tự do"
 };
 
 const statuses: Record<string, PlayerStatus> = {
@@ -106,7 +107,7 @@ export function mapPlayer(row: PlayerRow): Player {
     address: row.address ?? "",
     level: levels[row.level] ?? "Trung bình",
     dominantHand: row.dominant_hand === "Tay trái" ? "Tay trái" : "Tay phải",
-    eventType: events[row.event_type] ?? "Đơn nam",
+    eventType: events[row.event_type] ?? row.event_type ?? "Tự do",
     hasPartner: row.has_partner,
     partnerName: row.partner_name ?? undefined,
     note: row.note ?? undefined,
@@ -223,7 +224,7 @@ export async function getAdminTeams(): Promise<Team[]> {
   return (data as any[]).map((team) => ({
     id: team.id,
     name: team.name,
-    eventType: events[team.event_type] ?? "Đôi nam",
+    eventType: events[team.event_type] ?? team.event_type ?? "Tự do",
     status: team.status === "approved" || team.status === "Đủ điều kiện" ? "Đủ điều kiện" : team.status === "paused" ? "Tạm dừng" : "Chờ ghép",
     members: (team.team_members ?? []).map((member: any) => member.players?.full_name).filter(Boolean)
   }));
@@ -282,7 +283,7 @@ export async function getAdminMatches(): Promise<AdminMatch[]> {
       code: match.code,
       startsAt: match.starts_at,
       court: match.courts?.name ?? "Chưa xếp sân",
-      eventType: events[match.event_type] ?? "Đơn nam",
+      eventType: events[match.event_type] ?? match.event_type ?? "Tự do",
       homeTeam: match.home?.name ?? "Đội A",
       homeTeamId: match.home?.id ?? "",
       awayTeam: match.away?.name ?? "Đội B",

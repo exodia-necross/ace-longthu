@@ -32,7 +32,7 @@ export default async function AdminDashboardPage() {
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Card>
           <h3 className="text-xl font-bold">Ghép cặp tự động</h3>
-          <p className="mt-1 text-sm text-mutedForeground">Ưu tiên cặp đã đăng ký, sau đó ghép theo trình độ, giới tính và nội dung.</p>
+          <p className="mt-1 text-sm text-mutedForeground">Ưu tiên cặp đã đăng ký, sau đó ghép theo trình độ. Admin vẫn có thể xếp lại thủ công.</p>
           <div className="mt-4 space-y-3">
             {suggestedTeams.map((team) => (
               <div className="rounded-md bg-muted p-3" key={team.id}>
