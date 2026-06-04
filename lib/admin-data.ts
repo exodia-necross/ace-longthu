@@ -59,6 +59,8 @@ export type AdminMatch = {
   awayTeam: string;
   awayTeamId: string;
   status: MatchStatus;
+  score?: string;
+  winner?: string;
 };
 
 export function mapPlayer(row: PlayerRow): Player {
@@ -133,7 +135,7 @@ export async function getAdminMatches(): Promise<AdminMatch[]> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("matches")
-    .select("id,code,event_type,starts_at,status,courts(name),home:teams!matches_home_team_id_fkey(id,name),away:teams!matches_away_team_id_fkey(id,name)")
+    .select("id,code,event_type,starts_at,status,courts(name),home:teams!matches_home_team_id_fkey(id,name),away:teams!matches_away_team_id_fkey(id,name),match_results(set1,set2,set3,winner:teams!match_results_winner_team_id_fkey(name))")
     .order("starts_at", { ascending: true });
 
   if (error) {
@@ -141,18 +143,25 @@ export async function getAdminMatches(): Promise<AdminMatch[]> {
     return matches.map((match) => ({ ...match, homeTeamId: match.id, awayTeamId: match.id }));
   }
 
-  return (data as any[]).map((match) => ({
-    id: match.id,
-    code: match.code,
-    startsAt: match.starts_at,
-    court: match.courts?.name ?? "Chưa xếp sân",
-    eventType: events[match.event_type] ?? "Đơn nam",
-    homeTeam: match.home?.name ?? "Đội A",
-    homeTeamId: match.home?.id ?? "",
-    awayTeam: match.away?.name ?? "Đội B",
-    awayTeamId: match.away?.id ?? "",
-    status: matchStatuses[match.status] ?? "Sắp diễn ra"
-  }));
+  return (data as any[]).map((match) => {
+    const result = match.match_results?.[0];
+    const score = result ? [result.set1, result.set2, result.set3].filter(Boolean).join(", ") : undefined;
+
+    return {
+      id: match.id,
+      code: match.code,
+      startsAt: match.starts_at,
+      court: match.courts?.name ?? "Chưa xếp sân",
+      eventType: events[match.event_type] ?? "Đơn nam",
+      homeTeam: match.home?.name ?? "Đội A",
+      homeTeamId: match.home?.id ?? "",
+      awayTeam: match.away?.name ?? "Đội B",
+      awayTeamId: match.away?.id ?? "",
+      status: matchStatuses[match.status] ?? "Sắp diễn ra",
+      score,
+      winner: result?.winner?.name
+    };
+  });
 }
 
 export async function getAdminRankings(): Promise<RankingRow[]> {
