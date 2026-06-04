@@ -99,6 +99,7 @@ export async function saveTournamentSettings(formData: FormData) {
       slogan,
       starts_at: `${startsAtDate}T08:00:00+07:00`,
       venue_name: venue,
+      address: null,
       registration_open: registrationOpen,
       updated_at: new Date().toISOString()
     })

@@ -148,7 +148,7 @@ export async function getAdminTournament(): Promise<AdminTournament> {
     name: row.name,
     slogan: row.slogan ?? "",
     startsAt: row.starts_at,
-    venue: [row.venue_name, row.address].filter(Boolean).join(" - "),
+    venue: row.venue_name ?? row.address ?? "",
     registrationOpen: row.registration_open
   };
 }

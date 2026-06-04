@@ -35,27 +35,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     const formData = new FormData(event.currentTarget);
-    const payload = {
-      tournamentId,
-      fullName: String(formData.get("fullName") ?? ""),
-      birthDate: String(formData.get("birthDate") ?? ""),
-      gender: String(formData.get("gender") ?? ""),
-      phone: String(formData.get("phone") ?? ""),
-      email: String(formData.get("email") ?? ""),
-      address: String(formData.get("address") ?? ""),
-      level: String(formData.get("level") ?? "intermediate"),
-      dominantHand: String(formData.get("dominantHand") ?? "Tay phải"),
-      eventType: String(formData.get("eventType") ?? "mens_single"),
-      hasPartner: hasPartner === "Có",
-      partnerName: String(formData.get("partnerName") ?? ""),
-      note: String(formData.get("note") ?? "")
-    };
+    formData.set("tournamentId", tournamentId);
+    formData.set("hasPartner", hasPartner === "Có" ? "true" : "false");
 
     try {
       const response = await fetch("/api/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: formData
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Không thể gửi đăng ký");
@@ -81,7 +67,12 @@ export default function RegisterPage() {
             </Card>
           ) : (
             <Card className="mt-6">
-              <form className="grid gap-4" onSubmit={handleSubmit}>
+              <form className="grid gap-4" encType="multipart/form-data" onSubmit={handleSubmit}>
+                <label className="grid gap-2 text-sm font-semibold">
+                  Avatar
+                  <input accept="image/png,image/jpeg,image/webp" className="rounded-md border border-border p-3 text-sm dark:bg-white/5" name="avatar" type="file" />
+                  <span className="text-xs font-normal text-mutedForeground">Ảnh JPG, PNG hoặc WEBP, tối đa 2MB.</span>
+                </label>
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold">Họ tên<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="fullName" required /></label>
                   <label className="grid gap-2 text-sm font-semibold">Ngày sinh<input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="birthDate" required type="date" /></label>
