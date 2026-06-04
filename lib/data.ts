@@ -1,9 +1,10 @@
-import { announcements, tournament } from "@/lib/mock-data";
-import { getAdminMatches, getAdminPlayers, getAdminRankings, getAdminTeams, getAdminTournament } from "@/lib/admin-data";
+import { tournament } from "@/lib/mock-data";
+import { getAdminAnnouncements, getAdminMatches, getAdminPlayers, getAdminRankings, getAdminTeams, getAdminTournament } from "@/lib/admin-data";
 
 export async function getPublicData() {
-  const [currentTournament, players, teams, matches, rankings] = await Promise.all([
+  const [currentTournament, announcements, players, teams, matches, rankings] = await Promise.all([
     getAdminTournament(),
+    getAdminAnnouncements({ publicOnly: true }),
     getAdminPlayers(),
     getAdminTeams(),
     getAdminMatches(),

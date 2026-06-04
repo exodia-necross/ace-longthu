@@ -1,6 +1,6 @@
-import { matches, players, rankings, teams, tournament } from "@/lib/mock-data";
+import { announcements, matches, players, rankings, teams, tournament } from "@/lib/mock-data";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from "@/lib/supabase-admin";
-import type { EventType, MatchStatus, Player, PlayerStatus, RankingRow, SkillLevel, Team } from "@/lib/types";
+import type { Announcement, EventType, MatchStatus, Player, PlayerStatus, RankingRow, SkillLevel, Team } from "@/lib/types";
 
 const levels: Record<string, SkillLevel> = {
   beginner: "Mới chơi",
@@ -82,6 +82,14 @@ type TournamentRow = {
   registration_open: boolean;
 };
 
+type AnnouncementRow = {
+  id: string;
+  title: string;
+  body: string;
+  is_public: boolean;
+  created_at: string;
+};
+
 export function mapPlayer(row: PlayerRow): Player {
   return {
     id: row.id,
@@ -143,6 +151,37 @@ export async function getAdminTournament(): Promise<AdminTournament> {
     venue: [row.venue_name, row.address].filter(Boolean).join(" - "),
     registrationOpen: row.registration_open
   };
+}
+
+export async function getAdminAnnouncements({ publicOnly = false }: { publicOnly?: boolean } = {}): Promise<Announcement[]> {
+  if (!hasSupabaseAdminConfig()) {
+    return announcements.filter((item) => !publicOnly || item.isPublic !== false);
+  }
+
+  const supabase = createSupabaseAdminClient();
+  let query = supabase
+    .from("announcements")
+    .select("id,title,body,is_public,created_at")
+    .order("created_at", { ascending: false });
+
+  if (publicOnly) {
+    query = query.eq("is_public", true);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Failed to load announcements", error);
+    return announcements.filter((item) => !publicOnly || item.isPublic !== false);
+  }
+
+  return (data as AnnouncementRow[]).map((row) => ({
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    createdAt: row.created_at,
+    isPublic: row.is_public
+  }));
 }
 
 export async function getAdminPlayers(): Promise<Player[]> {

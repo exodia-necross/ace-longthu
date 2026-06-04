@@ -57,4 +57,5 @@ export interface Announcement {
   title: string;
   body: string;
   createdAt: string;
+  isPublic?: boolean;
 }

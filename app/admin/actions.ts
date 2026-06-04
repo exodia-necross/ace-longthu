@@ -11,6 +11,7 @@ const adminPaths = [
   "/admin/results",
   "/admin/ranking",
   "/admin/settings",
+  "/admin/announcements",
   "/",
   "/players",
   "/schedule",
@@ -103,6 +104,47 @@ export async function saveTournamentSettings(formData: FormData) {
     })
     .eq("id", tournamentId);
 
+  if (error) throw new Error(error.message);
+
+  revalidateAdmin();
+}
+
+export async function saveAnnouncement(formData: FormData) {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const id = String(formData.get("announcementId") ?? "");
+  const tournamentId = String(formData.get("tournamentId") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+  const isPublic = formData.get("isPublic") === "on";
+
+  if (!title || !body) return;
+
+  const supabase = createSupabaseAdminClient();
+  const payload = {
+    tournament_id: tournamentId || null,
+    title,
+    body,
+    is_public: isPublic
+  };
+
+  const { error } = id
+    ? await supabase.from("announcements").update(payload).eq("id", id)
+    : await supabase.from("announcements").insert(payload);
+
+  if (error) throw new Error(error.message);
+
+  revalidateAdmin();
+}
+
+export async function deleteAnnouncement(formData: FormData) {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const id = String(formData.get("announcementId") ?? "");
+  if (!id) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase.from("announcements").delete().eq("id", id);
   if (error) throw new Error(error.message);
 
   revalidateAdmin();

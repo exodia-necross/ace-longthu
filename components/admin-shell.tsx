@@ -9,6 +9,7 @@ export const adminNav = [
   ["Kết quả", "/admin/results"],
   ["Bảng xếp hạng", "/admin/ranking"],
   ["Cấu hình", "/admin/settings"],
+  ["Thông báo", "/admin/announcements"],
   ["Báo cáo", "/admin/reports"]
 ];
 
