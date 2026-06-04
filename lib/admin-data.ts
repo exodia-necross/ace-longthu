@@ -1,4 +1,4 @@
-import { matches, players, rankings, teams } from "@/lib/mock-data";
+import { matches, players, rankings, teams, tournament } from "@/lib/mock-data";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from "@/lib/supabase-admin";
 import type { EventType, MatchStatus, Player, PlayerStatus, RankingRow, SkillLevel, Team } from "@/lib/types";
 
@@ -63,6 +63,25 @@ export type AdminMatch = {
   winner?: string;
 };
 
+export type AdminTournament = {
+  id: string;
+  name: string;
+  slogan: string;
+  startsAt: string;
+  venue: string;
+  registrationOpen: boolean;
+};
+
+type TournamentRow = {
+  id: string;
+  name: string;
+  slogan: string | null;
+  starts_at: string;
+  venue_name: string | null;
+  address: string | null;
+  registration_open: boolean;
+};
+
 export function mapPlayer(row: PlayerRow): Player {
   return {
     id: row.id,
@@ -80,6 +99,49 @@ export function mapPlayer(row: PlayerRow): Player {
     note: row.note ?? undefined,
     avatarUrl: row.avatar_url ?? "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=300&q=80",
     status: statuses[row.status] ?? "Chờ duyệt"
+  };
+}
+
+export async function getAdminTournament(): Promise<AdminTournament> {
+  if (!hasSupabaseAdminConfig()) {
+    return {
+      id: "00000000-0000-0000-0000-000000000001",
+      name: tournament.name,
+      slogan: tournament.slogan,
+      startsAt: tournament.startsAt,
+      venue: tournament.venue,
+      registrationOpen: tournament.registrationOpen
+    };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("tournaments")
+    .select("id,name,slogan,starts_at,venue_name,address,registration_open")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error("Failed to load tournament", error);
+    return {
+      id: "00000000-0000-0000-0000-000000000001",
+      name: tournament.name,
+      slogan: tournament.slogan,
+      startsAt: tournament.startsAt,
+      venue: tournament.venue,
+      registrationOpen: tournament.registrationOpen
+    };
+  }
+
+  const row = data as TournamentRow;
+  return {
+    id: row.id,
+    name: row.name,
+    slogan: row.slogan ?? "",
+    startsAt: row.starts_at,
+    venue: [row.venue_name, row.address].filter(Boolean).join(" - "),
+    registrationOpen: row.registration_open
   };
 }
 

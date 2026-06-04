@@ -9,7 +9,14 @@ const adminPaths = [
   "/admin/pairing",
   "/admin/schedule",
   "/admin/results",
-  "/admin/ranking"
+  "/admin/ranking",
+  "/admin/settings",
+  "/",
+  "/players",
+  "/schedule",
+  "/ranking",
+  "/teams",
+  "/results"
 ];
 
 function revalidateAdmin() {
@@ -67,6 +74,36 @@ export async function saveMatchResult(formData: FormData) {
 
   const { error: matchError } = await supabase.from("matches").update({ status: "completed" }).eq("id", matchId);
   if (matchError) throw new Error(matchError.message);
+
+  revalidateAdmin();
+}
+
+export async function saveTournamentSettings(formData: FormData) {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const tournamentId = String(formData.get("tournamentId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const slogan = String(formData.get("slogan") ?? "").trim();
+  const startsAtDate = String(formData.get("startsAt") ?? "");
+  const venue = String(formData.get("venue") ?? "").trim();
+  const registrationOpen = formData.get("registrationOpen") === "on";
+
+  if (!tournamentId || !name || !startsAtDate) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("tournaments")
+    .update({
+      name,
+      slogan,
+      starts_at: `${startsAtDate}T08:00:00+07:00`,
+      venue_name: venue,
+      registration_open: registrationOpen,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", tournamentId);
+
+  if (error) throw new Error(error.message);
 
   revalidateAdmin();
 }

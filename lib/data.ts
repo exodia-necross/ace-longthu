@@ -1,8 +1,9 @@
 import { announcements, tournament } from "@/lib/mock-data";
-import { getAdminMatches, getAdminPlayers, getAdminRankings, getAdminTeams } from "@/lib/admin-data";
+import { getAdminMatches, getAdminPlayers, getAdminRankings, getAdminTeams, getAdminTournament } from "@/lib/admin-data";
 
 export async function getPublicData() {
-  const [players, teams, matches, rankings] = await Promise.all([
+  const [currentTournament, players, teams, matches, rankings] = await Promise.all([
+    getAdminTournament(),
     getAdminPlayers(),
     getAdminTeams(),
     getAdminMatches(),
@@ -10,7 +11,14 @@ export async function getPublicData() {
   ]);
 
   return {
-    tournament,
+    tournament: {
+      ...tournament,
+      name: currentTournament.name,
+      slogan: currentTournament.slogan,
+      startsAt: currentTournament.startsAt,
+      venue: currentTournament.venue,
+      registrationOpen: currentTournament.registrationOpen
+    },
     announcements,
     players: players.filter((player) => player.status === "Đã duyệt"),
     teams,
