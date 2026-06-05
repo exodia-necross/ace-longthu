@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from "@/lib/supabase-admin";
 
 const adminPaths = [
@@ -40,6 +39,14 @@ async function uploadBannerFile(file: File, prefix: string) {
   if (file.size > 10 * 1024 * 1024) throw new Error("Banner tối đa 10MB.");
 
   const supabase = createSupabaseAdminClient();
+  const { data: bucket } = await supabase.storage.getBucket("banners");
+  if (!bucket) {
+    const { error: bucketError } = await supabase.storage.createBucket("banners", { public: true });
+    if (bucketError && !bucketError.message.toLowerCase().includes("already exists")) {
+      throw new Error(`Không thể tạo bucket banner: ${bucketError.message}`);
+    }
+  }
+
   const extension = cleanFileName(file.name).split(".").pop() || "png";
   const path = `${prefix}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -307,7 +314,6 @@ export async function saveBannerSettings(formData: FormData) {
   if (error) throw new Error(error.message);
 
   revalidateAdmin();
-  redirect("/admin/settings?banner=saved");
 }
 
 export async function saveAnnouncement(formData: FormData) {

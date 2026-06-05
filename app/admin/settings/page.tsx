@@ -7,12 +7,7 @@ function toDateInput(value: string) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
-export default async function AdminSettingsPage({
-  searchParams
-}: {
-  searchParams?: Promise<{ banner?: string }>;
-}) {
-  const params = await searchParams;
+export default async function AdminSettingsPage() {
   const [tournament, banners] = await Promise.all([
     getAdminTournament(),
     getBannerSettings()
@@ -50,11 +45,6 @@ export default async function AdminSettingsPage({
         <div>
           <h3 className="text-xl font-bold">Quản lý banner website</h3>
           <p className="mt-2 text-sm text-mutedForeground">Thay banner cho giải đấu mới bằng cách dán URL ảnh hoặc upload file mới. Kích thước đề xuất: banner chính 1920×700, banner phụ 1920×300.</p>
-          {params?.banner === "saved" ? (
-            <p className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
-              Đã lưu banner. Trang chủ sẽ dùng ảnh mới sau khi tải lại.
-            </p>
-          ) : null}
         </div>
         <form action={saveBannerSettings} className="mt-5 grid gap-5" encType="multipart/form-data">
           <input name="currentMainBannerUrl" type="hidden" value={banners.mainBannerUrl} />
