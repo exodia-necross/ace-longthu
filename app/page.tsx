@@ -7,33 +7,24 @@ import { getPublicData } from "@/lib/data";
 import { formatDate } from "@/lib/utils";
 
 export default async function HomePage() {
-  const { tournament, announcements, players, matches, rankings } = await getPublicData();
+  const { tournament, banners, announcements, players, matches, rankings } = await getPublicData();
 
   return (
     <PageShell>
-      <section className="court-lines relative overflow-hidden bg-court-ink text-white">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1800&q=85')] bg-cover bg-center opacity-35" />
-        <div className="absolute inset-0 bg-gradient-to-r from-court-ink via-court-ink/84 to-court-ink/30" />
-        <div className="container-page relative grid min-h-[560px] items-center py-16">
-          <div className="max-w-3xl">
-            <p className="mb-4 inline-flex rounded-md bg-court-lime px-3 py-1 text-sm font-bold text-court-ink">
-              {tournament.slogan}
-            </p>
-            <h1 className="text-4xl font-black leading-tight sm:text-6xl">{tournament.name}</h1>
-            <p className="mt-5 max-w-2xl text-lg text-white/82">
-              Nền tảng quản lý giải đấu cầu lông từ đăng ký, ghép cặp, sinh lịch tự động đến cập nhật kết quả và bảng xếp hạng theo thời gian thực.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link className="rounded-md bg-court-green px-5 py-3 font-bold text-white" href="/register">
-                Đăng ký tham gia
-              </Link>
-              <Link className="rounded-md border border-white/40 px-5 py-3 font-bold text-white" href="/schedule">
-                Xem lịch thi đấu
-              </Link>
-              <Link className="rounded-md border border-white/40 px-5 py-3 font-bold text-white" href="/ranking">
-                Bảng xếp hạng
-              </Link>
-            </div>
+      <section className="bg-court-ink py-4 sm:py-6">
+        <div className="container-page">
+          <div className="relative overflow-hidden rounded-md border border-white/15 bg-court-ink shadow-xl">
+            <img
+              src={banners.mainBannerUrl}
+              alt={banners.altText}
+              className="aspect-[1920/700] w-full object-cover"
+            />
+            <Link
+              href="/register"
+              className="absolute bottom-4 right-4 hidden rounded-md bg-yellow-400 px-5 py-3 text-sm font-black text-court-ink shadow-lg transition hover:bg-court-lime sm:inline-flex"
+            >
+              Đăng ký tham gia
+            </Link>
           </div>
         </div>
       </section>
@@ -44,6 +35,16 @@ export default async function HomePage() {
         <StatCard icon={Users} label="VĐV đăng ký" value={players.length} />
         <StatCard icon={Trophy} label="Trận đã lên lịch" value={matches.length} />
       </section>
+
+      {banners.subBannerUrl ? (
+        <section className="container-page pb-10">
+          <img
+            src={banners.subBannerUrl}
+            alt={`${banners.altText} - thông tin phụ`}
+            className="aspect-[1920/300] w-full rounded-md border border-border object-cover shadow-sm"
+          />
+        </section>
+      ) : null}
 
       <section className="container-page grid gap-6 pb-12 lg:grid-cols-[1.2fr_0.8fr]">
         <Card>

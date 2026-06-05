@@ -25,6 +25,33 @@ function revalidateAdmin() {
   adminPaths.forEach((path) => revalidatePath(path));
 }
 
+function cleanFileName(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+async function uploadBannerFile(file: File, prefix: string) {
+  if (file.size === 0) return null;
+  if (!file.type.startsWith("image/")) throw new Error("Banner phải là file ảnh.");
+  if (file.size > 6 * 1024 * 1024) throw new Error("Banner tối đa 6MB.");
+
+  const supabase = createSupabaseAdminClient();
+  const extension = cleanFileName(file.name).split(".").pop() || "png";
+  const path = `${prefix}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from("banners").upload(path, file, {
+    contentType: file.type,
+    upsert: false
+  });
+
+  if (error) throw new Error(`Không thể upload banner: ${error.message}`);
+
+  const { data } = supabase.storage.from("banners").getPublicUrl(path);
+  return data.publicUrl;
+}
+
 function parseSetDifference(setScore: string) {
   const [first, second] = setScore.split(/[-:]/).map((value) => Number.parseInt(value.trim(), 10));
   if (!Number.isFinite(first) || !Number.isFinite(second)) return 0;
@@ -244,6 +271,36 @@ export async function saveTournamentSettings(formData: FormData) {
       updated_at: new Date().toISOString()
     })
     .eq("id", tournamentId);
+
+  if (error) throw new Error(error.message);
+
+  revalidateAdmin();
+}
+
+export async function saveBannerSettings(formData: FormData) {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const currentMainBannerUrl = String(formData.get("currentMainBannerUrl") ?? "");
+  const currentSubBannerUrl = String(formData.get("currentSubBannerUrl") ?? "");
+  const mainBannerUrl = String(formData.get("mainBannerUrl") ?? "").trim();
+  const subBannerUrl = String(formData.get("subBannerUrl") ?? "").trim();
+  const altText = String(formData.get("altText") ?? "").trim() || "Banner Giải cầu lông ACE Lông Thủ";
+  const mainBannerFile = formData.get("mainBannerFile");
+  const subBannerFile = formData.get("subBannerFile");
+
+  const uploadedMainUrl = mainBannerFile instanceof File ? await uploadBannerFile(mainBannerFile, "main") : null;
+  const uploadedSubUrl = subBannerFile instanceof File ? await uploadBannerFile(subBannerFile, "sub") : null;
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase.from("settings").upsert({
+    key: "site_banners",
+    value: {
+      mainBannerUrl: uploadedMainUrl || mainBannerUrl || currentMainBannerUrl || "/banners/ace-long-thu-banner-main.png",
+      subBannerUrl: uploadedSubUrl || subBannerUrl || currentSubBannerUrl || "/banners/ace-long-thu-banner-sub.png",
+      altText
+    },
+    updated_at: new Date().toISOString()
+  });
 
   if (error) throw new Error(error.message);
 

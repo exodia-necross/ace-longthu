@@ -78,6 +78,18 @@ export type AdminTournament = {
   registrationOpen: boolean;
 };
 
+export type BannerSettings = {
+  mainBannerUrl: string;
+  subBannerUrl: string;
+  altText: string;
+};
+
+export const defaultBannerSettings: BannerSettings = {
+  mainBannerUrl: "/banners/ace-long-thu-banner-main.png",
+  subBannerUrl: "/banners/ace-long-thu-banner-sub.png",
+  altText: "Banner Giải cầu lông ACE Lông Thủ Quý III 2026"
+};
+
 type TournamentRow = {
   id: string;
   name: string;
@@ -188,6 +200,29 @@ export async function getAdminAnnouncements({ publicOnly = false }: { publicOnly
     createdAt: row.created_at,
     isPublic: row.is_public
   }));
+}
+
+export async function getBannerSettings(): Promise<BannerSettings> {
+  if (!hasSupabaseAdminConfig()) return defaultBannerSettings;
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "site_banners")
+    .maybeSingle();
+
+  if (error || !data?.value) {
+    if (error) console.error("Failed to load banner settings", error);
+    return defaultBannerSettings;
+  }
+
+  const value = data.value as Partial<BannerSettings>;
+  return {
+    mainBannerUrl: value.mainBannerUrl || defaultBannerSettings.mainBannerUrl,
+    subBannerUrl: value.subBannerUrl || defaultBannerSettings.subBannerUrl,
+    altText: value.altText || defaultBannerSettings.altText
+  };
 }
 
 export async function getAdminPlayers(): Promise<Player[]> {
