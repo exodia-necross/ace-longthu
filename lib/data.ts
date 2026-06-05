@@ -22,7 +22,7 @@ export async function getPublicData() {
     },
     announcements,
     players: players.filter((player) => player.status === "Đã duyệt"),
-    teams,
+    teams: teams.filter((team) => team.status === "Đủ điều kiện"),
     matches,
     rankings
   };

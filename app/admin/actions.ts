@@ -12,6 +12,7 @@ const adminPaths = [
   "/admin/ranking",
   "/admin/settings",
   "/admin/announcements",
+  "/admin/reports",
   "/",
   "/players",
   "/schedule",
@@ -22,6 +23,116 @@ const adminPaths = [
 
 function revalidateAdmin() {
   adminPaths.forEach((path) => revalidatePath(path));
+}
+
+function parseSetDifference(setScore: string) {
+  const [first, second] = setScore.split(/[-:]/).map((value) => Number.parseInt(value.trim(), 10));
+  if (!Number.isFinite(first) || !Number.isFinite(second)) return 0;
+  return Math.abs(first - second);
+}
+
+async function recalculateRankingsForTournament(tournamentId: string) {
+  const supabase = createSupabaseAdminClient();
+  const { data: teams, error: teamsError } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("tournament_id", tournamentId);
+
+  if (teamsError) throw new Error(teamsError.message);
+
+  const rankingByTeam = new Map<string, { matches: number; wins: number; losses: number; point_difference: number; points: number }>();
+  for (const team of teams ?? []) {
+    rankingByTeam.set(team.id, { matches: 0, wins: 0, losses: 0, point_difference: 0, points: 0 });
+  }
+
+  const { data: matches, error: matchesError } = await supabase
+    .from("matches")
+    .select("id,home_team_id,away_team_id,match_results(winner_team_id,set1,set2,set3)")
+    .eq("tournament_id", tournamentId)
+    .eq("status", "completed");
+
+  if (matchesError) throw new Error(matchesError.message);
+
+  for (const match of matches ?? []) {
+    const result = Array.isArray(match.match_results) ? match.match_results[0] : match.match_results;
+    if (!result?.winner_team_id) continue;
+
+    const winnerId = result.winner_team_id;
+    const loserId = winnerId === match.home_team_id ? match.away_team_id : match.home_team_id;
+    const winnerRanking = rankingByTeam.get(winnerId);
+    const loserRanking = rankingByTeam.get(loserId);
+    if (!winnerRanking || !loserRanking) continue;
+
+    const pointDifference = [result.set1, result.set2, result.set3].filter(Boolean).reduce((total, setScore) => total + parseSetDifference(String(setScore)), 0);
+
+    winnerRanking.matches += 1;
+    winnerRanking.wins += 1;
+    winnerRanking.point_difference += pointDifference;
+    winnerRanking.points += 3;
+
+    loserRanking.matches += 1;
+    loserRanking.losses += 1;
+    loserRanking.point_difference -= pointDifference;
+  }
+
+  await supabase.from("rankings").delete().eq("tournament_id", tournamentId);
+
+  const rows = [...rankingByTeam.entries()].map(([teamId, ranking]) => ({
+    tournament_id: tournamentId,
+    team_id: teamId,
+    ...ranking,
+    updated_at: new Date().toISOString()
+  }));
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from("rankings").insert(rows);
+    if (error) throw new Error(error.message);
+  }
+}
+
+export async function createPlayerFromAdmin(formData: FormData) {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  const birthDate = String(formData.get("birthDate") ?? "");
+  const gender = String(formData.get("gender") ?? "Nam");
+  const level = String(formData.get("level") ?? "beginner");
+  const dominantHand = String(formData.get("dominantHand") ?? "Tay phải");
+  const address = String(formData.get("address") ?? "").trim();
+  const status = String(formData.get("status") ?? "approved");
+
+  if (!fullName || !email || !phone || !birthDate) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { data: tournament, error: tournamentError } = await supabase
+    .from("tournaments")
+    .select("id")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+
+  if (tournamentError) throw new Error(tournamentError.message);
+
+  const { error } = await supabase.from("players").insert({
+    tournament_id: tournament.id,
+    full_name: fullName,
+    birth_date: birthDate,
+    gender,
+    phone,
+    email,
+    address: address || null,
+    level,
+    dominant_hand: dominantHand,
+    event_type: "free",
+    has_partner: false,
+    status
+  });
+
+  if (error) throw new Error(error.message);
+
+  revalidateAdmin();
 }
 
 export async function updatePlayerStatus(formData: FormData) {
@@ -63,6 +174,16 @@ export async function saveMatchResult(formData: FormData) {
   if (!matchId || !winnerTeamId || !set1) return;
 
   const supabase = createSupabaseAdminClient();
+  const { data: match, error: matchLoadError } = await supabase
+    .from("matches")
+    .select("tournament_id")
+    .eq("id", matchId)
+    .single();
+
+  if (matchLoadError) throw new Error(matchLoadError.message);
+
+  await supabase.from("match_results").delete().eq("match_id", matchId);
+
   const { error: resultError } = await supabase.from("match_results").insert({
     match_id: matchId,
     winner_team_id: winnerTeamId,
@@ -76,6 +197,25 @@ export async function saveMatchResult(formData: FormData) {
   const { error: matchError } = await supabase.from("matches").update({ status: "completed" }).eq("id", matchId);
   if (matchError) throw new Error(matchError.message);
 
+  await recalculateRankingsForTournament(match.tournament_id);
+
+  revalidateAdmin();
+}
+
+export async function recalculateRankings() {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { data: tournament, error } = await supabase
+    .from("tournaments")
+    .select("id")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  await recalculateRankingsForTournament(tournament.id);
   revalidateAdmin();
 }
 
@@ -326,10 +466,15 @@ export async function deleteTeam(formData: FormData) {
   if (!teamId) return;
 
   const supabase = createSupabaseAdminClient();
+  const { data: team } = await supabase.from("teams").select("tournament_id").eq("id", teamId).maybeSingle();
   await supabase.from("matches").delete().eq("home_team_id", teamId);
   await supabase.from("matches").delete().eq("away_team_id", teamId);
   const { error } = await supabase.from("teams").delete().eq("id", teamId);
   if (error) throw new Error(error.message);
+
+  if (team?.tournament_id) {
+    await recalculateRankingsForTournament(team.tournament_id);
+  }
 
   revalidateAdmin();
 }
@@ -397,6 +542,8 @@ export async function generateRoundRobinMatches() {
     if (insertError) throw new Error(insertError.message);
   }
 
+  await recalculateRankingsForTournament(tournament.id);
+
   revalidateAdmin();
 }
 
@@ -449,8 +596,13 @@ export async function deleteMatch(formData: FormData) {
   if (!matchId) return;
 
   const supabase = createSupabaseAdminClient();
+  const { data: match } = await supabase.from("matches").select("tournament_id").eq("id", matchId).maybeSingle();
   const { error } = await supabase.from("matches").delete().eq("id", matchId);
   if (error) throw new Error(error.message);
+
+  if (match?.tournament_id) {
+    await recalculateRankingsForTournament(match.tournament_id);
+  }
 
   revalidateAdmin();
 }

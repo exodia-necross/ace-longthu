@@ -1,5 +1,6 @@
 import { AdminShell } from "@/components/admin-shell";
 import { Card } from "@/components/ui/card";
+import { recalculateRankings } from "@/app/admin/actions";
 import { getAdminRankings } from "@/lib/admin-data";
 
 export default async function AdminRankingPage() {
@@ -9,7 +10,9 @@ export default async function AdminRankingPage() {
     <AdminShell title="Bảng xếp hạng">
       <Card className="mt-6 overflow-hidden p-0">
         <div className="border-b border-border p-4">
-          <button className="rounded-md bg-court-blue px-4 py-2 text-sm font-bold text-white">Tính lại xếp hạng</button>
+          <form action={recalculateRankings}>
+            <button className="rounded-md bg-court-blue px-4 py-2 text-sm font-bold text-white">Tính lại xếp hạng</button>
+          </form>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
