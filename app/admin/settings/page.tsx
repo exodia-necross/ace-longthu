@@ -1,5 +1,6 @@
 import { saveTournamentSettings } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin-shell";
+import { BannerSettingsForm } from "@/components/banner-settings-form";
 import { Card } from "@/components/ui/card";
 import { getAdminTournament, getBannerSettings } from "@/lib/admin-data";
 
@@ -61,49 +62,7 @@ export default async function AdminSettingsPage({
             </p>
           ) : null}
         </div>
-        <form action="/api/admin/banners" className="mt-5 grid gap-5" encType="multipart/form-data" method="post">
-          <input name="currentMainBannerUrl" type="hidden" value={banners.mainBannerUrl} />
-          <input name="currentSubBannerUrl" type="hidden" value={banners.subBannerUrl} />
-
-          <label className="grid gap-2 text-sm font-semibold">
-            Mô tả ảnh
-            <input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" defaultValue={banners.altText} name="altText" />
-          </label>
-
-          <div className="grid gap-5 xl:grid-cols-2">
-            <div className="grid gap-3">
-              <p className="text-sm font-bold">Banner chính</p>
-              <div className="overflow-hidden rounded-md border border-border bg-muted">
-                <img alt={banners.altText} className="aspect-[1920/700] w-full object-cover" src={banners.mainBannerUrl} />
-              </div>
-              <label className="grid gap-2 text-sm font-semibold">
-                URL banner chính
-                <input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" defaultValue={banners.mainBannerUrl} name="mainBannerUrl" placeholder="https://..." />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                Hoặc upload banner chính mới
-                <input accept="image/png,image/jpeg,image/webp" className="rounded-md border border-border p-3 text-sm dark:bg-white/5" name="mainBannerFile" type="file" />
-              </label>
-            </div>
-
-            <div className="grid gap-3">
-              <p className="text-sm font-bold">Banner phụ</p>
-              <div className="overflow-hidden rounded-md border border-border bg-muted">
-                <img alt={banners.altText} className="aspect-[1920/300] w-full object-cover" src={banners.subBannerUrl} />
-              </div>
-              <label className="grid gap-2 text-sm font-semibold">
-                URL banner phụ
-                <input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" defaultValue={banners.subBannerUrl} name="subBannerUrl" placeholder="https://..." />
-              </label>
-              <label className="grid gap-2 text-sm font-semibold">
-                Hoặc upload banner phụ mới
-                <input accept="image/png,image/jpeg,image/webp" className="rounded-md border border-border p-3 text-sm dark:bg-white/5" name="subBannerFile" type="file" />
-              </label>
-            </div>
-          </div>
-
-          <button className="w-fit rounded-md bg-court-green px-4 py-2 text-sm font-bold text-white" type="submit">Lưu banner</button>
-        </form>
+        <BannerSettingsForm banners={banners} />
       </Card>
     </AdminShell>
   );

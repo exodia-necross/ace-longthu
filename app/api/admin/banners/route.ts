@@ -93,6 +93,8 @@ async function uploadBannerFile(file: File, prefix: string) {
 }
 
 export async function POST(request: Request) {
+  const wantsJson = request.headers.get("accept")?.includes("application/json");
+
   try {
     await ensureAdmin();
 
@@ -109,22 +111,30 @@ export async function POST(request: Request) {
     const uploadedSubUrl = subBannerFile instanceof File ? await uploadBannerFile(subBannerFile, "sub") : null;
 
     const supabase = createSupabaseAdminClient();
+    const savedBanners = {
+      mainBannerUrl: uploadedMainUrl || normalizeBannerUrl(mainBannerUrl, currentMainBannerUrl || "/banners/ace-long-thu-banner-main.png"),
+      subBannerUrl: uploadedSubUrl || normalizeBannerUrl(subBannerUrl, currentSubBannerUrl || "/banners/ace-long-thu-banner-sub.png"),
+      altText
+    };
+
     const { error } = await supabase.from("settings").upsert({
       key: "site_banners",
-      value: {
-        mainBannerUrl: uploadedMainUrl || normalizeBannerUrl(mainBannerUrl, currentMainBannerUrl || "/banners/ace-long-thu-banner-main.png"),
-        subBannerUrl: uploadedSubUrl || normalizeBannerUrl(subBannerUrl, currentSubBannerUrl || "/banners/ace-long-thu-banner-sub.png"),
-        altText
-      },
+      value: savedBanners,
       updated_at: new Date().toISOString()
     });
 
     if (error) throw new Error(error.message);
 
     pathsToRevalidate.forEach((path) => revalidatePath(path));
+    if (wantsJson) {
+      return NextResponse.json({ ok: true, banners: savedBanners });
+    }
     return NextResponse.redirect(settingsUrl(request, { banner: "saved" }), 303);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Lỗi không xác định";
+    if (wantsJson) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
     return NextResponse.redirect(settingsUrl(request, { banner_error: message }), 303);
   }
 }
