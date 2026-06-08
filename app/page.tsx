@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { CalendarDays, MapPin, Trophy, Users } from "lucide-react";
 import { PageShell } from "@/components/page-shell";
 import { StatCard } from "@/components/stat-card";
@@ -19,12 +18,6 @@ export default async function HomePage() {
               alt={banners.altText}
               className="aspect-[1920/700] w-full object-cover"
             />
-            <Link
-              href="/register"
-              className="absolute bottom-4 right-4 hidden rounded-md bg-yellow-400 px-5 py-3 text-sm font-black text-court-ink shadow-lg transition hover:bg-court-lime sm:inline-flex"
-            >
-              Đăng ký tham gia
-            </Link>
           </div>
         </div>
       </section>
