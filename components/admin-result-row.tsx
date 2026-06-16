@@ -1,6 +1,6 @@
 "use client";
 
-import { saveMatchResult } from "@/app/admin/actions";
+import { resetMatchResult, saveMatchResult } from "@/app/admin/actions";
 import type { AdminMatch } from "@/lib/admin-data";
 import { useState } from "react";
 
@@ -29,12 +29,24 @@ export function AdminResultRow({ match }: { match: AdminMatch }) {
             </span>
           </div>
         </div>
-        <button
-          onClick={() => setEditing(true)}
-          className="rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-muted"
-        >
-          ✏ Sửa
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button
+            onClick={() => setEditing(true)}
+            className="rounded-md border border-border px-3 py-2 text-sm font-semibold hover:bg-muted"
+          >
+            ✏ Sửa
+          </button>
+          <form action={resetMatchResult}>
+            <input type="hidden" name="matchId" value={match.id} />
+            <button
+              type="submit"
+              className="rounded-md border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+              title="Xóa kết quả, đặt lại trạng thái Sắp diễn ra"
+            >
+              ↺ Reset
+            </button>
+          </form>
+        </div>
       </div>
     );
   }

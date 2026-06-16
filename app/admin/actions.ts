@@ -1077,6 +1077,25 @@ export async function generateFinalAndThirdPlace() {
   revalidateAdmin();
 }
 
+export async function resetMatchResult(formData: FormData) {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const matchId = String(formData.get("matchId") ?? "");
+  if (!matchId) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { data: match } = await supabase.from("matches").select("tournament_id").eq("id", matchId).maybeSingle();
+
+  await supabase.from("match_results").delete().eq("match_id", matchId);
+  await supabase.from("matches").update({ status: "scheduled" }).eq("id", matchId);
+
+  if (match?.tournament_id) {
+    await recalculateRankingsForTournament(match.tournament_id);
+  }
+
+  revalidateAdmin();
+}
+
 export async function deleteMatch(formData: FormData) {
   if (!hasSupabaseAdminConfig()) return;
 
