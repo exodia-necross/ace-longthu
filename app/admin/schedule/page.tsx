@@ -108,12 +108,7 @@ export default async function AdminSchedulePage() {
               {/* Xóa tất cả trận */}
               {matches.length > 0 && (
                 <form action={deleteAllMatches}>
-                  <button
-                    className="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white"
-                    onClick={(e) => {
-                      if (!confirm(`Xóa toàn bộ ${matches.length} trận đấu?`)) e.preventDefault();
-                    }}
-                  >
+                  <button className="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white">
                     🗑 Xóa tất cả ({matches.length} trận)
                   </button>
                 </form>
