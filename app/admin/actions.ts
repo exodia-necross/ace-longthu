@@ -545,6 +545,37 @@ export async function deleteTeam(formData: FormData) {
   revalidateAdmin();
 }
 
+function shuffleItems<T>(items: T[]) {
+  return [...items]
+    .map((item) => ({ item, sort: Math.random() }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ item }) => item);
+}
+
+function roundRobinPairs<T>(teams: T[]) {
+  const pairs: Array<Array<[T, T]>> = [];
+  const pool: Array<T | null> = teams.length % 2 === 0 ? [...teams] : [...teams, null];
+  const rounds = pool.length - 1;
+
+  for (let round = 0; round < rounds; round += 1) {
+    const roundPairs: Array<[T, T]> = [];
+
+    for (let index = 0; index < pool.length / 2; index += 1) {
+      const home = pool[index];
+      const away = pool[pool.length - 1 - index];
+      if (home && away) roundPairs.push(round % 2 === 0 ? [home, away] : [away, home]);
+    }
+
+    pairs.push(roundPairs);
+    const fixed = pool[0];
+    const rotating = pool.slice(1);
+    rotating.unshift(rotating.pop() ?? null);
+    pool.splice(0, pool.length, fixed, ...rotating);
+  }
+
+  return pairs;
+}
+
 export async function generateRoundRobinMatches() {
   if (!hasSupabaseAdminConfig()) return;
 
