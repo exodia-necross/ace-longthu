@@ -545,6 +545,24 @@ export async function deleteTeam(formData: FormData) {
   revalidateAdmin();
 }
 
+type ScheduleMatch = { homeTeamId: string; awayTeamId: string; [key: string]: unknown };
+
+function noConsecutiveSort<T extends ScheduleMatch>(matches: T[]): T[] {
+  const remaining = [...matches];
+  const result: T[] = [];
+  let lastTeams = new Set<string>();
+
+  while (remaining.length > 0) {
+    const idx = remaining.findIndex(
+      (m) => !lastTeams.has(m.homeTeamId) && !lastTeams.has(m.awayTeamId)
+    );
+    const pick = idx === -1 ? remaining.shift()! : remaining.splice(idx, 1)[0];
+    result.push(pick);
+    lastTeams = new Set([pick.homeTeamId, pick.awayTeamId]);
+  }
+  return result;
+}
+
 function shuffleItems<T>(items: T[]) {
   return [...items]
     .map((item) => ({ item, sort: Math.random() }))
@@ -693,29 +711,25 @@ export async function generateGroupMatches(formData: FormData) {
     ? new Date(new Date(existingMatches[0].starts_at).getTime() + 45 * 60 * 1000)
     : new Date(tournament.starts_at);
 
-  const rounds = roundRobinPairs(groupTeams);
-  const inserts = [];
-  let slot = 0;
-  let count = 1;
-
-  for (const round of rounds) {
-    for (const [homeTeam, awayTeam] of shuffleItems(round)) {
-      const court = courts[slot % courts.length];
-      const startsAt = new Date(startAt.getTime() + slot * 45 * 60 * 1000);
-      inserts.push({
-        tournament_id: tournament.id,
-        code: `${prefix}-${String(count).padStart(3, "0")}`,
-        event_type: groupLabel,
-        court_id: court.id,
-        home_team_id: homeTeam.id,
-        away_team_id: awayTeam.id,
-        starts_at: startsAt.toISOString(),
-        status: "scheduled"
-      });
-      slot += 1;
-      count += 1;
+  // Build all pairs then sort so no team plays 2 consecutive matches
+  const rawPairs: Array<{ homeTeamId: string; awayTeamId: string; home: typeof groupTeams[0]; away: typeof groupTeams[0] }> = [];
+  for (const round of roundRobinPairs(groupTeams)) {
+    for (const [home, away] of shuffleItems(round)) {
+      rawPairs.push({ homeTeamId: home.id, awayTeamId: away.id, home, away });
     }
   }
+  const sortedPairs = noConsecutiveSort(rawPairs);
+
+  const inserts = sortedPairs.map((pair, index) => ({
+    tournament_id: tournament.id,
+    code: `${prefix}-${String(index + 1).padStart(3, "0")}`,
+    event_type: groupLabel,
+    court_id: courts[index % courts.length].id,
+    home_team_id: pair.home.id,
+    away_team_id: pair.away.id,
+    starts_at: new Date(startAt.getTime() + index * 45 * 60 * 1000).toISOString(),
+    status: "scheduled"
+  }));
 
   if (inserts.length > 0) {
     const { error } = await supabase.from("matches").insert(inserts);
@@ -826,32 +840,33 @@ export async function generateRoundRobinMatches() {
 
   await supabase.from("matches").delete().eq("tournament_id", tournament.id);
 
-  const groupStageMatches = [];
-  let slot = 0;
   const startAt = new Date(tournament.starts_at);
+  const groupStageMatches: Array<Record<string, unknown>> = [];
+  let slot = 0;
 
   for (const group of groups) {
-    const rounds = roundRobinPairs(group.teams);
-    let count = 1;
-
-    for (const round of rounds) {
-      for (const [homeTeam, awayTeam] of shuffleItems(round)) {
-        const court = courts[slot % courts.length];
-        const startsAt = new Date(startAt.getTime() + slot * 45 * 60 * 1000);
-        groupStageMatches.push({
-          tournament_id: tournament.id,
-          code: `${group.prefix}-${String(count).padStart(3, "0")}`,
-          event_type: group.label,
-          court_id: court.id,
-          home_team_id: homeTeam.id,
-          away_team_id: awayTeam.id,
-          starts_at: startsAt.toISOString(),
-          status: "scheduled"
-        });
-        slot += 1;
-        count += 1;
+    // Build all pairs for this group then sort so no team plays 2 consecutive matches
+    const rawPairs: Array<{ homeTeamId: string; awayTeamId: string; home: typeof group.teams[0]; away: typeof group.teams[0] }> = [];
+    for (const round of roundRobinPairs(group.teams)) {
+      for (const [home, away] of shuffleItems(round)) {
+        rawPairs.push({ homeTeamId: home.id, awayTeamId: away.id, home, away });
       }
     }
+    const sortedPairs = noConsecutiveSort(rawPairs);
+
+    sortedPairs.forEach((pair, i) => {
+      groupStageMatches.push({
+        tournament_id: tournament.id,
+        code: `${group.prefix}-${String(i + 1).padStart(3, "0")}`,
+        event_type: group.label,
+        court_id: courts[slot % courts.length].id,
+        home_team_id: pair.home.id,
+        away_team_id: pair.away.id,
+        starts_at: new Date(startAt.getTime() + slot * 45 * 60 * 1000).toISOString(),
+        status: "scheduled"
+      });
+      slot += 1;
+    });
   }
 
   if (groupStageMatches.length > 0) {
