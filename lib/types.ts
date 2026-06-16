@@ -50,6 +50,7 @@ export interface RankingRow {
   losses: number;
   difference: number;
   points: number;
+  group?: string;
 }
 
 export interface Announcement {

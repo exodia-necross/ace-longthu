@@ -336,7 +336,7 @@ export async function getAdminRankings(): Promise<RankingRow[]> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("rankings")
-    .select("matches,wins,losses,point_difference,points,teams(name)")
+    .select("matches,wins,losses,point_difference,points,teams(name,event_type)")
     .order("points", { ascending: false })
     .order("point_difference", { ascending: false });
 
@@ -345,13 +345,21 @@ export async function getAdminRankings(): Promise<RankingRow[]> {
     return rankings;
   }
 
-  return (data as any[]).map((row, index) => ({
-    rank: index + 1,
-    team: row.teams?.name ?? "Chưa rõ đội",
-    matches: row.matches,
-    wins: row.wins,
-    losses: row.losses,
-    difference: row.point_difference,
-    points: row.points
-  }));
+  const groupRanks: Record<string, number> = {};
+  return (data as any[]).map((row) => {
+    const group = (row.teams?.event_type as string | undefined) ?? "";
+    const isGroupStage = group === "Bảng A" || group === "Bảng B";
+    const groupKey = isGroupStage ? group : "__all__";
+    groupRanks[groupKey] = (groupRanks[groupKey] ?? 0) + 1;
+    return {
+      rank: groupRanks[groupKey],
+      team: row.teams?.name ?? "Chưa rõ đội",
+      matches: row.matches,
+      wins: row.wins,
+      losses: row.losses,
+      difference: row.point_difference,
+      points: row.points,
+      group: isGroupStage ? group : undefined
+    };
+  });
 }

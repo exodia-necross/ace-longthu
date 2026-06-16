@@ -12,6 +12,11 @@ export default async function AdminSchedulePage() {
   ]);
   const eligibleTeams = teams.filter((team) => team.status === "Đủ điều kiện");
 
+  const groupAMatches = matches.filter((m) => m.eventType === "Bảng A");
+  const groupBMatches = matches.filter((m) => m.eventType === "Bảng B");
+  const otherMatches = matches.filter((m) => m.eventType !== "Bảng A" && m.eventType !== "Bảng B");
+  const hasGroupMatches = groupAMatches.length > 0 || groupBMatches.length > 0;
+
   return (
     <AdminShell title="Quản lý lịch thi đấu">
       <div className="mt-6 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
@@ -56,44 +61,123 @@ export default async function AdminSchedulePage() {
           </form>
         </Card>
 
-        <Card className="overflow-hidden p-0">
-          <div className="flex flex-wrap gap-3 border-b border-border p-4">
-            <form action={generateRoundRobinMatches}>
-              <button className="rounded-md bg-court-blue px-4 py-2 text-sm font-bold text-white">Sinh lịch tự động tự do</button>
-            </form>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-left text-sm">
-              <thead className="bg-muted">
-                <tr>{["Mã", "Ngày", "Giờ", "Sân", "Trận", "Nhãn", "Trạng thái", "Thao tác"].map((item) => <th className="px-4 py-3" key={item}>{item}</th>)}</tr>
-              </thead>
-              <tbody>
-                {matches.length === 0 && (
-                  <tr>
-                    <td className="px-4 py-8 text-center text-mutedForeground" colSpan={8}>Chưa có lịch thi đấu.</td>
-                  </tr>
-                )}
-                {matches.map((match) => (
-                  <tr className="border-t border-border" key={match.id}>
-                    <td className="px-4 py-3 font-bold">{match.code}</td>
-                    <td className="px-4 py-3">{formatDate(match.startsAt)}</td>
-                    <td className="px-4 py-3">{formatTime(match.startsAt)}</td>
-                    <td className="px-4 py-3">{match.court}</td>
-                    <td className="px-4 py-3">{match.homeTeam} vs {match.awayTeam}</td>
-                    <td className="px-4 py-3">{match.eventType}</td>
-                    <td className="px-4 py-3">{match.status}</td>
-                    <td className="px-4 py-3">
-                      <form action={deleteMatch}>
-                        <input name="matchId" type="hidden" value={match.id} />
-                        <button className="rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white">Xóa</button>
-                      </form>
-                    </td>
-                  </tr>
+        <div className="flex flex-col gap-6">
+          <Card className="overflow-hidden p-0">
+            <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
+              <form action={generateRoundRobinMatches}>
+                <button className="rounded-md bg-court-blue px-4 py-2 text-sm font-bold text-white">
+                  🔄 Sinh lịch vòng bảng A+B (ngẫu nhiên)
+                </button>
+              </form>
+              <p className="text-xs text-mutedForeground">Tự động chia đội vào Bảng A/B và tạo lịch vòng tròn cho từng bảng. Lịch cũ sẽ bị xóa.</p>
+            </div>
+
+            {hasGroupMatches ? (
+              <>
+                {[
+                  { label: "Bảng A", matchList: groupAMatches },
+                  { label: "Bảng B", matchList: groupBMatches }
+                ].map(({ label, matchList }) => matchList.length > 0 && (
+                  <div key={label}>
+                    <div className="border-b border-border bg-muted/60 px-4 py-2">
+                      <span className="text-sm font-black uppercase tracking-wider">{label} — {matchList.length} trận</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[880px] text-left text-sm">
+                        <thead className="bg-muted">
+                          <tr>{["Mã", "Ngày", "Giờ", "Sân", "Trận", "Trạng thái", "Thao tác"].map((item) => <th className="px-4 py-3" key={item}>{item}</th>)}</tr>
+                        </thead>
+                        <tbody>
+                          {matchList.map((match) => (
+                            <tr className="border-t border-border" key={match.id}>
+                              <td className="px-4 py-3 font-bold">{match.code}</td>
+                              <td className="px-4 py-3">{formatDate(match.startsAt)}</td>
+                              <td className="px-4 py-3">{formatTime(match.startsAt)}</td>
+                              <td className="px-4 py-3">{match.court}</td>
+                              <td className="px-4 py-3">{match.homeTeam} vs {match.awayTeam}</td>
+                              <td className="px-4 py-3">{match.status}</td>
+                              <td className="px-4 py-3">
+                                <form action={deleteMatch}>
+                                  <input name="matchId" type="hidden" value={match.id} />
+                                  <button className="rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white">Xóa</button>
+                                </form>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                {otherMatches.length > 0 && (
+                  <div>
+                    <div className="border-b border-border bg-muted/60 px-4 py-2">
+                      <span className="text-sm font-black uppercase tracking-wider">Trận khác — {otherMatches.length} trận</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[880px] text-left text-sm">
+                        <thead className="bg-muted">
+                          <tr>{["Mã", "Ngày", "Giờ", "Sân", "Trận", "Nhãn", "Trạng thái", "Thao tác"].map((item) => <th className="px-4 py-3" key={item}>{item}</th>)}</tr>
+                        </thead>
+                        <tbody>
+                          {otherMatches.map((match) => (
+                            <tr className="border-t border-border" key={match.id}>
+                              <td className="px-4 py-3 font-bold">{match.code}</td>
+                              <td className="px-4 py-3">{formatDate(match.startsAt)}</td>
+                              <td className="px-4 py-3">{formatTime(match.startsAt)}</td>
+                              <td className="px-4 py-3">{match.court}</td>
+                              <td className="px-4 py-3">{match.homeTeam} vs {match.awayTeam}</td>
+                              <td className="px-4 py-3">{match.eventType}</td>
+                              <td className="px-4 py-3">{match.status}</td>
+                              <td className="px-4 py-3">
+                                <form action={deleteMatch}>
+                                  <input name="matchId" type="hidden" value={match.id} />
+                                  <button className="rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white">Xóa</button>
+                                </form>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[880px] text-left text-sm">
+                  <thead className="bg-muted">
+                    <tr>{["Mã", "Ngày", "Giờ", "Sân", "Trận", "Nhãn", "Trạng thái", "Thao tác"].map((item) => <th className="px-4 py-3" key={item}>{item}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {matches.length === 0 && (
+                      <tr>
+                        <td className="px-4 py-8 text-center text-mutedForeground" colSpan={8}>Chưa có lịch thi đấu.</td>
+                      </tr>
+                    )}
+                    {matches.map((match) => (
+                      <tr className="border-t border-border" key={match.id}>
+                        <td className="px-4 py-3 font-bold">{match.code}</td>
+                        <td className="px-4 py-3">{formatDate(match.startsAt)}</td>
+                        <td className="px-4 py-3">{formatTime(match.startsAt)}</td>
+                        <td className="px-4 py-3">{match.court}</td>
+                        <td className="px-4 py-3">{match.homeTeam} vs {match.awayTeam}</td>
+                        <td className="px-4 py-3">{match.eventType}</td>
+                        <td className="px-4 py-3">{match.status}</td>
+                        <td className="px-4 py-3">
+                          <form action={deleteMatch}>
+                            <input name="matchId" type="hidden" value={match.id} />
+                            <button className="rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white">Xóa</button>
+                          </form>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
     </AdminShell>
   );

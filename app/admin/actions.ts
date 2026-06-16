@@ -576,6 +576,47 @@ function roundRobinPairs<T>(teams: T[]) {
   return pairs;
 }
 
+<<<<<<< HEAD
+=======
+export async function assignGroupsRandomly() {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { data: tournament, error: tournamentError } = await supabase
+    .from("tournaments")
+    .select("id")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+
+  if (tournamentError) throw new Error(tournamentError.message);
+
+  const { data: teams, error: teamsError } = await supabase
+    .from("teams")
+    .select("id,status")
+    .eq("tournament_id", tournament.id)
+    .eq("status", "approved")
+    .order("created_at", { ascending: true });
+
+  if (teamsError) throw new Error(teamsError.message);
+
+  const eligibleTeams = shuffleItems(teams ?? []);
+  if (eligibleTeams.length < 2) throw new Error("Cần ít nhất 2 đội đủ điều kiện để chia bảng.");
+
+  const splitIndex = Math.ceil(eligibleTeams.length / 2);
+  const groupA = eligibleTeams.slice(0, splitIndex);
+  const groupB = eligibleTeams.slice(splitIndex);
+
+  const { error: errA } = await supabase.from("teams").update({ event_type: "Bảng A" }).in("id", groupA.map((t) => t.id));
+  if (errA) throw new Error(errA.message);
+
+  const { error: errB } = await supabase.from("teams").update({ event_type: "Bảng B" }).in("id", groupB.map((t) => t.id));
+  if (errB) throw new Error(errB.message);
+
+  revalidateAdmin();
+}
+
+>>>>>>> 299e76d (Add group stage: Bảng A/B with round-robin schedule and rankings)
 export async function generateRoundRobinMatches() {
   if (!hasSupabaseAdminConfig()) return;
 
@@ -605,42 +646,73 @@ export async function generateRoundRobinMatches() {
     .order("name", { ascending: true });
 
   if (courtsError) throw new Error(courtsError.message);
+
   if (!courts || courts.length === 0) throw new Error("Chưa có sân active để sinh lịch.");
 
-  await supabase.from("matches").delete().eq("tournament_id", tournament.id);
+  const allTeams = teams ?? [];
+  if (allTeams.length < 2) throw new Error("Cần ít nhất 2 đội đủ điều kiện để sinh lịch.");
 
-  const inserts = [];
-  let slot = 0;
-  let count = 1;
-  const startAt = new Date(tournament.starts_at);
-  const eventTeams = teams ?? [];
+  const hasGroupAssignment = allTeams.some((t) => t.event_type === "Bảng A" || t.event_type === "Bảng B");
 
-  for (let i = 0; i < eventTeams.length; i += 1) {
-    for (let j = i + 1; j < eventTeams.length; j += 1) {
-      const court = courts[slot % courts.length];
-      const startsAt = new Date(startAt.getTime() + slot * 45 * 60 * 1000);
-      inserts.push({
-        tournament_id: tournament.id,
-        code: `RR-${String(count).padStart(3, "0")}`,
-        event_type: "Tự do",
-        court_id: court.id,
-        home_team_id: eventTeams[i].id,
-        away_team_id: eventTeams[j].id,
-        starts_at: startsAt.toISOString(),
-        status: "scheduled"
-      });
-      slot += 1;
-      count += 1;
+  let groups: Array<{ label: string; prefix: string; teams: typeof allTeams }>;
+  if (hasGroupAssignment) {
+    groups = [
+      { label: "Bảng A", prefix: "A", teams: allTeams.filter((t) => t.event_type === "Bảng A") },
+      { label: "Bảng B", prefix: "B", teams: allTeams.filter((t) => t.event_type === "Bảng B") }
+    ].filter((g) => g.teams.length > 0);
+  } else {
+    const shuffled = shuffleItems(allTeams);
+    const splitIndex = Math.ceil(shuffled.length / 2);
+    groups = [
+      { label: "Bảng A", prefix: "A", teams: shuffled.slice(0, splitIndex) },
+      { label: "Bảng B", prefix: "B", teams: shuffled.slice(splitIndex) }
+    ].filter((g) => g.teams.length > 0);
+
+    for (const group of groups) {
+      const { error: groupError } = await supabase
+        .from("teams")
+        .update({ event_type: group.label })
+        .in("id", group.teams.map((t) => t.id));
+      if (groupError) throw new Error(groupError.message);
     }
   }
 
-  if (inserts.length > 0) {
-    const { error: insertError } = await supabase.from("matches").insert(inserts);
+  await supabase.from("matches").delete().eq("tournament_id", tournament.id);
+
+  const groupStageMatches = [];
+  let slot = 0;
+  const startAt = new Date(tournament.starts_at);
+
+  for (const group of groups) {
+    const rounds = roundRobinPairs(group.teams);
+    let count = 1;
+
+    for (const round of rounds) {
+      for (const [homeTeam, awayTeam] of shuffleItems(round)) {
+        const court = courts[slot % courts.length];
+        const startsAt = new Date(startAt.getTime() + slot * 45 * 60 * 1000);
+        groupStageMatches.push({
+          tournament_id: tournament.id,
+          code: `${group.prefix}-${String(count).padStart(3, "0")}`,
+          event_type: group.label,
+          court_id: court.id,
+          home_team_id: homeTeam.id,
+          away_team_id: awayTeam.id,
+          starts_at: startsAt.toISOString(),
+          status: "scheduled"
+        });
+        slot += 1;
+        count += 1;
+      }
+    }
+  }
+
+  if (groupStageMatches.length > 0) {
+    const { error: insertError } = await supabase.from("matches").insert(groupStageMatches);
     if (insertError) throw new Error(insertError.message);
   }
 
   await recalculateRankingsForTournament(tournament.id);
-
   revalidateAdmin();
 }
 
