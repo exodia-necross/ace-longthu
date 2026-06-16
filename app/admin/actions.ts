@@ -607,7 +607,7 @@ export async function updateMatch(formData: FormData) {
   const supabase = createSupabaseAdminClient();
   const updates: Record<string, string> = {};
   if (courtId) updates.court_id = courtId;
-  if (startsAt) updates.starts_at = new Date(startsAt).toISOString();
+  if (startsAt) updates.starts_at = new Date(`${startsAt}+07:00`).toISOString();
   if (code) updates.code = code;
   if (eventType) updates.event_type = eventType;
 
@@ -896,7 +896,7 @@ export async function createManualMatch(formData: FormData) {
     court_id: courtId,
     home_team_id: homeTeamId,
     away_team_id: awayTeamId,
-    starts_at: new Date(startsAt).toISOString(),
+    starts_at: new Date(`${startsAt}+07:00`).toISOString(),
     status: "scheduled"
   });
 
