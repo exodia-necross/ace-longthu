@@ -10,13 +10,15 @@ export function formatDate(value: string) {
     weekday: "short",
     day: "2-digit",
     month: "2-digit",
-    year: "numeric"
+    year: "numeric",
+    timeZone: "Asia/Ho_Chi_Minh"
   }).format(new Date(value));
 }
 
 export function formatTime(value: string) {
   return new Intl.DateTimeFormat("vi-VN", {
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "Asia/Ho_Chi_Minh"
   }).format(new Date(value));
 }
