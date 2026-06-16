@@ -1,4 +1,4 @@
-import { createManualMatch, deleteAllMatches, generateGroupMatches, generateRoundRobinMatches } from "@/app/admin/actions";
+import { createManualMatch, deleteAllMatches, generateFinalAndThirdPlace, generateGroupMatches, generateRoundRobinMatches, generateSemiFinals } from "@/app/admin/actions";
 import { AdminMatchRow } from "@/components/admin-match-row";
 import { AdminShell } from "@/components/admin-shell";
 import { Card } from "@/components/ui/card";
@@ -14,10 +14,16 @@ export default async function AdminSchedulePage() {
   const groupATeams = eligibleTeams.filter((t) => t.eventType === "Bảng A");
   const groupBTeams = eligibleTeams.filter((t) => t.eventType === "Bảng B");
 
+  const KNOCKOUT_TYPES = ["Bán kết", "Tranh hạng 3", "Chung kết"];
   const groupAMatches = matches.filter((m) => m.eventType === "Bảng A");
   const groupBMatches = matches.filter((m) => m.eventType === "Bảng B");
-  const otherMatches = matches.filter((m) => m.eventType !== "Bảng A" && m.eventType !== "Bảng B");
+  const semiMatches = matches.filter((m) => m.eventType === "Bán kết");
+  const thirdMatches = matches.filter((m) => m.eventType === "Tranh hạng 3");
+  const finalMatches = matches.filter((m) => m.eventType === "Chung kết");
+  const otherMatches = matches.filter((m) => m.eventType !== "Bảng A" && m.eventType !== "Bảng B" && !KNOCKOUT_TYPES.includes(m.eventType));
   const hasGroupMatches = groupAMatches.length > 0 || groupBMatches.length > 0;
+  const hasKnockout = semiMatches.length > 0 || thirdMatches.length > 0 || finalMatches.length > 0;
+  const semisCompleted = semiMatches.length === 2 && semiMatches.every((m) => m.status === "Đã kết thúc");
 
   return (
     <AdminShell title="Quản lý lịch thi đấu">
@@ -76,11 +82,10 @@ export default async function AdminSchedulePage() {
         {/* === BẢNG LỊCH THI ĐẤU === */}
         <div className="flex flex-col gap-6">
 
-          {/* Thanh công cụ */}
+          {/* Thanh công cụ — Vòng bảng */}
           <Card className="p-4">
-            <p className="mb-3 text-sm font-bold">Sinh lịch vòng tròn theo bảng (xóa lịch cũ của bảng đó)</p>
+            <p className="mb-3 text-sm font-bold text-mutedForeground uppercase tracking-wider text-xs">Vòng bảng</p>
             <div className="flex flex-wrap gap-3">
-              {/* Sinh lịch từng bảng */}
               {[
                 { label: "Bảng A", count: groupATeams.length },
                 { label: "Bảng B", count: groupBTeams.length }
@@ -90,22 +95,17 @@ export default async function AdminSchedulePage() {
                   <button
                     className="rounded-md bg-court-blue px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
                     disabled={count < 2}
-                    title={count < 2 ? `Cần ít nhất 2 đội trong ${label}` : `Sinh lịch ngẫu nhiên ${label} (${count} đội)`}
                   >
                     🔀 Sinh lịch {label}
                     {count > 0 && <span className="ml-1 opacity-80">({count} đội · {count * (count - 1) / 2} trận)</span>}
                   </button>
                 </form>
               ))}
-
-              {/* Sinh cả 2 bảng cùng lúc */}
               <form action={generateRoundRobinMatches}>
                 <button className="rounded-md border border-court-blue px-4 py-2 text-sm font-bold text-court-blue">
                   🔄 Sinh lịch cả 2 bảng
                 </button>
               </form>
-
-              {/* Xóa tất cả trận */}
               {matches.length > 0 && (
                 <form action={deleteAllMatches}>
                   <button className="rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white">
@@ -116,7 +116,36 @@ export default async function AdminSchedulePage() {
             </div>
           </Card>
 
+          {/* Thanh công cụ — Vòng loại trực tiếp */}
+          <Card className="p-4">
+            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-mutedForeground">Vòng loại trực tiếp</p>
+            <p className="mb-3 text-xs text-mutedForeground">Nhất A đấu Nhì B · Nhất B đấu Nhì A → Chung kết + Tranh hạng 3</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <form action={generateSemiFinals}>
+                <button className="rounded-md bg-orange-500 px-4 py-2 text-sm font-bold text-white">
+                  🏆 Sinh lịch bán kết
+                </button>
+              </form>
+              <form action={generateFinalAndThirdPlace}>
+                <button
+                  className="rounded-md px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+                  style={{ backgroundColor: semisCompleted ? "#7c3aed" : "#a78bfa" }}
+                  disabled={!semisCompleted}
+                  title={semisCompleted ? "Sinh lịch chung kết & tranh hạng 3" : "Cần hoàn thành cả 2 trận bán kết trước"}
+                >
+                  🥇 Sinh lịch chung kết &amp; hạng 3
+                </button>
+              </form>
+              {!semisCompleted && semiMatches.length > 0 && (
+                <span className="text-xs text-orange-600">
+                  ({semiMatches.filter((m) => m.status === "Đã kết thúc").length}/2 bán kết đã xong)
+                </span>
+              )}
+            </div>
+          </Card>
+
           {/* Bảng lịch */}
+          {/* Vòng bảng */}
           <Card className="overflow-hidden p-0">
             {hasGroupMatches ? (
               <>
@@ -130,7 +159,7 @@ export default async function AdminSchedulePage() {
                       <form action={generateGroupMatches}>
                         <input type="hidden" name="group" value={label} />
                         <button className="rounded px-2 py-1 text-xs font-semibold text-court-blue hover:underline">
-                          🔀 Xáo lại lịch {label}
+                          🔀 Xáo lại {label}
                         </button>
                       </form>
                     </div>
@@ -146,18 +175,36 @@ export default async function AdminSchedulePage() {
                   </div>
                 )}
               </>
+            ) : matches.length === 0 ? (
+              <div className="px-4 py-12 text-center text-sm text-mutedForeground">
+                Chưa có lịch thi đấu. Dùng các nút bên trên để sinh lịch.
+              </div>
             ) : (
-              <>
-                {matches.length === 0 ? (
-                  <div className="px-4 py-12 text-center text-sm text-mutedForeground">
-                    Chưa có lịch thi đấu. Dùng các nút bên trên để sinh lịch.
-                  </div>
-                ) : (
-                  <MatchTable matchList={matches} courts={courts} showLabel />
-                )}
-              </>
+              <MatchTable matchList={matches} courts={courts} showLabel />
             )}
           </Card>
+
+          {/* Vòng loại trực tiếp */}
+          {hasKnockout && (
+            <Card className="overflow-hidden p-0">
+              <div className="border-b border-border bg-orange-50 px-4 py-3 dark:bg-orange-950/20">
+                <p className="font-black uppercase tracking-wider text-orange-700 dark:text-orange-400">Vòng loại trực tiếp</p>
+              </div>
+              {[
+                { label: "Bán kết", matchList: semiMatches, desc: "Nhất A vs Nhì B · Nhất B vs Nhì A" },
+                { label: "Tranh hạng 3", matchList: thirdMatches, desc: "2 đội thua bán kết" },
+                { label: "Chung kết", matchList: finalMatches, desc: "2 đội thắng bán kết" }
+              ].map(({ label, matchList, desc }) => matchList.length > 0 && (
+                <div key={label}>
+                  <div className="border-b border-border bg-muted/40 px-4 py-2">
+                    <span className="text-sm font-black uppercase tracking-wider">{label}</span>
+                    <span className="ml-2 text-xs text-mutedForeground">{desc}</span>
+                  </div>
+                  <MatchTable matchList={matchList} courts={courts} />
+                </div>
+              ))}
+            </Card>
+          )}
         </div>
       </div>
     </AdminShell>

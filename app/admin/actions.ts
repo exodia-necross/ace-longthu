@@ -920,6 +920,163 @@ export async function createManualMatch(formData: FormData) {
   revalidateAdmin();
 }
 
+export async function generateSemiFinals() {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { data: tournament, error: tournamentError } = await supabase
+    .from("tournaments")
+    .select("id,starts_at")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+  if (tournamentError) throw new Error(tournamentError.message);
+
+  // Get rankings joined with teams to know each team's group
+  const { data: rankingRows, error: rankingError } = await supabase
+    .from("rankings")
+    .select("team_id,points,point_difference,wins,teams(id,name,event_type)")
+    .eq("tournament_id", tournament.id)
+    .order("points", { ascending: false })
+    .order("point_difference", { ascending: false });
+  if (rankingError) throw new Error(rankingError.message);
+
+  const rows = (rankingRows ?? []) as Array<{
+    team_id: string;
+    points: number;
+    point_difference: number;
+    wins: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    teams: any;
+  }>;
+
+  const groupA = rows.filter((r) => r.teams?.event_type === "Bảng A");
+  const groupB = rows.filter((r) => r.teams?.event_type === "Bảng B");
+
+  if (groupA.length < 2) throw new Error("Bảng A cần ít nhất 2 đội có kết quả để sinh bán kết.");
+  if (groupB.length < 2) throw new Error("Bảng B cần ít nhất 2 đội có kết quả để sinh bán kết.");
+
+  const first_A = groupA[0];
+  const second_A = groupA[1];
+  const first_B = groupB[0];
+  const second_B = groupB[1];
+
+  const { data: courts, error: courtsError } = await supabase
+    .from("courts").select("id,name").eq("is_active", true).order("name", { ascending: true });
+  if (courtsError) throw new Error(courtsError.message);
+  if (!courts || courts.length === 0) throw new Error("Chưa có sân active.");
+
+  // Get latest match time to schedule semis after group stage
+  const { data: lastMatch } = await supabase
+    .from("matches").select("starts_at").eq("tournament_id", tournament.id)
+    .not("event_type", "in", '("Bán kết","Chung kết","Tranh hạng 3")')
+    .order("starts_at", { ascending: false }).limit(1);
+
+  const baseTime = lastMatch && lastMatch.length > 0
+    ? new Date(new Date(lastMatch[0].starts_at).getTime() + 60 * 60 * 1000)
+    : new Date(tournament.starts_at);
+
+  // Delete old knockout matches
+  await supabase.from("matches").delete().eq("tournament_id", tournament.id)
+    .in("event_type", ["Bán kết", "Chung kết", "Tranh hạng 3"]);
+
+  const semis = [
+    {
+      code: "BK-001",
+      event_type: "Bán kết",
+      court_id: courts[0].id,
+      home_team_id: first_A.team_id,
+      away_team_id: second_B.team_id,
+      starts_at: baseTime.toISOString(),
+      status: "scheduled",
+      tournament_id: tournament.id
+    },
+    {
+      code: "BK-002",
+      event_type: "Bán kết",
+      court_id: courts[courts.length > 1 ? 1 : 0].id,
+      home_team_id: first_B.team_id,
+      away_team_id: second_A.team_id,
+      starts_at: new Date(baseTime.getTime() + 60 * 60 * 1000).toISOString(),
+      status: "scheduled",
+      tournament_id: tournament.id
+    }
+  ];
+
+  const { error } = await supabase.from("matches").insert(semis);
+  if (error) throw new Error(error.message);
+
+  revalidateAdmin();
+}
+
+export async function generateFinalAndThirdPlace() {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { data: tournament, error: tournamentError } = await supabase
+    .from("tournaments").select("id").order("created_at", { ascending: true }).limit(1).single();
+  if (tournamentError) throw new Error(tournamentError.message);
+
+  // Get semi-final matches with results
+  const { data: semis, error: semisError } = await supabase
+    .from("matches")
+    .select("id,home_team_id,away_team_id,starts_at,match_results(winner_team_id)")
+    .eq("tournament_id", tournament.id)
+    .eq("event_type", "Bán kết")
+    .order("code", { ascending: true });
+  if (semisError) throw new Error(semisError.message);
+  if (!semis || semis.length < 2) throw new Error("Cần có 2 trận bán kết đã được thi đấu.");
+
+  const getResult = (match: typeof semis[0]) => {
+    const result = Array.isArray(match.match_results) ? match.match_results[0] : match.match_results;
+    return result?.winner_team_id ?? null;
+  };
+
+  const winner1 = getResult(semis[0]);
+  const winner2 = getResult(semis[1]);
+  if (!winner1 || !winner2) throw new Error("Chưa có kết quả cả 2 trận bán kết.");
+
+  const loser1 = winner1 === semis[0].home_team_id ? semis[0].away_team_id : semis[0].home_team_id;
+  const loser2 = winner2 === semis[1].home_team_id ? semis[1].away_team_id : semis[1].home_team_id;
+
+  const { data: courts } = await supabase.from("courts").select("id,name").eq("is_active", true).order("name", { ascending: true });
+  const courtId = courts?.[0]?.id;
+  if (!courtId) throw new Error("Chưa có sân active.");
+
+  const lastSemiTime = new Date(Math.max(...semis.map((s) => new Date(s.starts_at).getTime())));
+  const finalTime = new Date(lastSemiTime.getTime() + 90 * 60 * 1000);
+  const thirdTime = new Date(lastSemiTime.getTime() + 60 * 60 * 1000);
+
+  await supabase.from("matches").delete().eq("tournament_id", tournament.id)
+    .in("event_type", ["Chung kết", "Tranh hạng 3"]);
+
+  const { error } = await supabase.from("matches").insert([
+    {
+      tournament_id: tournament.id,
+      code: "TH3-001",
+      event_type: "Tranh hạng 3",
+      court_id: courts![courts!.length > 1 ? 1 : 0].id,
+      home_team_id: loser1,
+      away_team_id: loser2,
+      starts_at: thirdTime.toISOString(),
+      status: "scheduled"
+    },
+    {
+      tournament_id: tournament.id,
+      code: "CK-001",
+      event_type: "Chung kết",
+      court_id: courtId,
+      home_team_id: winner1,
+      away_team_id: winner2,
+      starts_at: finalTime.toISOString(),
+      status: "scheduled"
+    }
+  ]);
+  if (error) throw new Error(error.message);
+
+  revalidateAdmin();
+}
+
 export async function deleteMatch(formData: FormData) {
   if (!hasSupabaseAdminConfig()) return;
 
