@@ -576,8 +576,6 @@ function roundRobinPairs<T>(teams: T[]) {
   return pairs;
 }
 
-<<<<<<< HEAD
-=======
 export async function assignGroupsRandomly() {
   if (!hasSupabaseAdminConfig()) return;
 
@@ -616,7 +614,6 @@ export async function assignGroupsRandomly() {
   revalidateAdmin();
 }
 
->>>>>>> 299e76d (Add group stage: Bảng A/B with round-robin schedule and rankings)
 export async function generateRoundRobinMatches() {
   if (!hasSupabaseAdminConfig()) return;
 
