@@ -593,6 +593,30 @@ export async function assignTeamToGroup(formData: FormData) {
   revalidateAdmin();
 }
 
+export async function updateMatch(formData: FormData) {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const matchId = String(formData.get("matchId") ?? "");
+  const courtId = String(formData.get("courtId") ?? "");
+  const startsAt = String(formData.get("startsAt") ?? "");
+  const code = String(formData.get("code") ?? "").trim();
+  const eventType = String(formData.get("eventType") ?? "").trim();
+
+  if (!matchId) return;
+
+  const supabase = createSupabaseAdminClient();
+  const updates: Record<string, string> = {};
+  if (courtId) updates.court_id = courtId;
+  if (startsAt) updates.starts_at = new Date(startsAt).toISOString();
+  if (code) updates.code = code;
+  if (eventType) updates.event_type = eventType;
+
+  const { error } = await supabase.from("matches").update(updates).eq("id", matchId);
+  if (error) throw new Error(error.message);
+
+  revalidateAdmin();
+}
+
 export async function deleteAllMatches() {
   if (!hasSupabaseAdminConfig()) return;
 

@@ -1,8 +1,8 @@
-import { createManualMatch, deleteAllMatches, deleteMatch, generateGroupMatches, generateRoundRobinMatches } from "@/app/admin/actions";
+import { createManualMatch, deleteAllMatches, generateGroupMatches, generateRoundRobinMatches } from "@/app/admin/actions";
+import { AdminMatchRow } from "@/components/admin-match-row";
 import { AdminShell } from "@/components/admin-shell";
 import { Card } from "@/components/ui/card";
 import { getAdminCourts, getAdminMatches, getAdminTeams } from "@/lib/admin-data";
-import { formatDate, formatTime } from "@/lib/utils";
 
 export default async function AdminSchedulePage() {
   const [matches, teams, courts] = await Promise.all([
@@ -134,7 +134,7 @@ export default async function AdminSchedulePage() {
                         </button>
                       </form>
                     </div>
-                    <MatchTable matchList={matchList} />
+                    <MatchTable matchList={matchList} courts={courts} />
                   </div>
                 ))}
                 {otherMatches.length > 0 && (
@@ -142,7 +142,7 @@ export default async function AdminSchedulePage() {
                     <div className="border-b border-border bg-muted/60 px-4 py-2">
                       <span className="text-sm font-black uppercase tracking-wider">Trận khác — {otherMatches.length} trận</span>
                     </div>
-                    <MatchTable matchList={otherMatches} showLabel />
+                    <MatchTable matchList={otherMatches} courts={courts} showLabel />
                   </div>
                 )}
               </>
@@ -153,7 +153,7 @@ export default async function AdminSchedulePage() {
                     Chưa có lịch thi đấu. Dùng các nút bên trên để sinh lịch.
                   </div>
                 ) : (
-                  <MatchTable matchList={matches} showLabel />
+                  <MatchTable matchList={matches} courts={courts} showLabel />
                 )}
               </>
             )}
@@ -164,39 +164,17 @@ export default async function AdminSchedulePage() {
   );
 }
 
-function MatchTable({ matchList, showLabel }: { matchList: Awaited<ReturnType<typeof getAdminMatches>>; showLabel?: boolean }) {
-  const cols = ["Mã", "Ngày", "Giờ", "Sân", "Trận đấu", ...(showLabel ? ["Nhãn"] : []), "Trạng thái", "Xóa"];
+function MatchTable({ matchList, courts, showLabel }: { matchList: Awaited<ReturnType<typeof getAdminMatches>>; courts: Awaited<ReturnType<typeof getAdminCourts>>; showLabel?: boolean }) {
+  const cols = ["Mã", "Ngày", "Giờ", "Sân", "Trận đấu", ...(showLabel ? ["Nhãn"] : []), "Trạng thái", "Thao tác"];
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] text-left text-sm">
+      <table className="w-full min-w-[820px] text-left text-sm">
         <thead className="bg-muted">
           <tr>{cols.map((c) => <th className="px-4 py-3" key={c}>{c}</th>)}</tr>
         </thead>
         <tbody>
           {matchList.map((match) => (
-            <tr className="border-t border-border hover:bg-muted/30" key={match.id}>
-              <td className="px-4 py-3 font-bold">{match.code}</td>
-              <td className="px-4 py-3">{formatDate(match.startsAt)}</td>
-              <td className="px-4 py-3">{formatTime(match.startsAt)}</td>
-              <td className="px-4 py-3">{match.court}</td>
-              <td className="px-4 py-3">{match.homeTeam} vs {match.awayTeam}</td>
-              {showLabel && <td className="px-4 py-3">{match.eventType}</td>}
-              <td className="px-4 py-3">
-                <span className={`rounded px-2 py-0.5 text-xs font-semibold ${
-                  match.status === "Đã kết thúc" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                  : match.status === "Đang thi đấu" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30"
-                  : "bg-muted text-mutedForeground"
-                }`}>
-                  {match.status}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                <form action={deleteMatch}>
-                  <input name="matchId" type="hidden" value={match.id} />
-                  <button className="rounded bg-red-600 px-2 py-1 text-xs font-bold text-white">Xóa</button>
-                </form>
-              </td>
-            </tr>
+            <AdminMatchRow key={match.id} match={match} courts={courts} showLabel={showLabel} />
           ))}
         </tbody>
       </table>
