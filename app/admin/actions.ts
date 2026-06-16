@@ -576,6 +576,132 @@ function roundRobinPairs<T>(teams: T[]) {
   return pairs;
 }
 
+export async function assignTeamToGroup(formData: FormData) {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const teamId = String(formData.get("teamId") ?? "");
+  const group = String(formData.get("group") ?? "");
+  if (!teamId) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("teams")
+    .update({ event_type: group || "Tự do" })
+    .eq("id", teamId);
+
+  if (error) throw new Error(error.message);
+  revalidateAdmin();
+}
+
+export async function deleteAllMatches() {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { data: tournament, error: tournamentError } = await supabase
+    .from("tournaments")
+    .select("id")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+
+  if (tournamentError) throw new Error(tournamentError.message);
+
+  await supabase.from("matches").delete().eq("tournament_id", tournament.id);
+  await recalculateRankingsForTournament(tournament.id);
+  revalidateAdmin();
+}
+
+export async function generateGroupMatches(formData: FormData) {
+  if (!hasSupabaseAdminConfig()) return;
+
+  const groupLabel = String(formData.get("group") ?? "");
+  if (!groupLabel) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { data: tournament, error: tournamentError } = await supabase
+    .from("tournaments")
+    .select("id,starts_at")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+
+  if (tournamentError) throw new Error(tournamentError.message);
+
+  const { data: teams, error: teamsError } = await supabase
+    .from("teams")
+    .select("id,name,event_type,status")
+    .eq("tournament_id", tournament.id)
+    .eq("status", "approved")
+    .eq("event_type", groupLabel)
+    .order("created_at", { ascending: true });
+
+  if (teamsError) throw new Error(teamsError.message);
+
+  const groupTeams = shuffleItems(teams ?? []);
+  if (groupTeams.length < 2) throw new Error(`Cần ít nhất 2 đội trong ${groupLabel} để sinh lịch.`);
+
+  const { data: courts, error: courtsError } = await supabase
+    .from("courts")
+    .select("id,name")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  if (courtsError) throw new Error(courtsError.message);
+  if (!courts || courts.length === 0) throw new Error("Chưa có sân active để sinh lịch.");
+
+  // Get last slot time to append after existing matches
+  const { data: existingMatches } = await supabase
+    .from("matches")
+    .select("starts_at,court_id")
+    .eq("tournament_id", tournament.id)
+    .order("starts_at", { ascending: false })
+    .limit(1);
+
+  // Delete old matches for this group only
+  await supabase
+    .from("matches")
+    .delete()
+    .eq("tournament_id", tournament.id)
+    .eq("event_type", groupLabel);
+
+  const prefix = groupLabel === "Bảng A" ? "A" : groupLabel === "Bảng B" ? "B" : groupLabel.charAt(0);
+  const startAt = existingMatches && existingMatches.length > 0
+    ? new Date(new Date(existingMatches[0].starts_at).getTime() + 45 * 60 * 1000)
+    : new Date(tournament.starts_at);
+
+  const rounds = roundRobinPairs(groupTeams);
+  const inserts = [];
+  let slot = 0;
+  let count = 1;
+
+  for (const round of rounds) {
+    for (const [homeTeam, awayTeam] of shuffleItems(round)) {
+      const court = courts[slot % courts.length];
+      const startsAt = new Date(startAt.getTime() + slot * 45 * 60 * 1000);
+      inserts.push({
+        tournament_id: tournament.id,
+        code: `${prefix}-${String(count).padStart(3, "0")}`,
+        event_type: groupLabel,
+        court_id: court.id,
+        home_team_id: homeTeam.id,
+        away_team_id: awayTeam.id,
+        starts_at: startsAt.toISOString(),
+        status: "scheduled"
+      });
+      slot += 1;
+      count += 1;
+    }
+  }
+
+  if (inserts.length > 0) {
+    const { error } = await supabase.from("matches").insert(inserts);
+    if (error) throw new Error(error.message);
+  }
+
+  await recalculateRankingsForTournament(tournament.id);
+  revalidateAdmin();
+}
+
 export async function assignGroupsRandomly() {
   if (!hasSupabaseAdminConfig()) return;
 

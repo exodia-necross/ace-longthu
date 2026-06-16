@@ -1,4 +1,4 @@
-import { assignGroupsRandomly, createManualTeam, deleteTeam, generateTeamsFromApprovedPlayers } from "@/app/admin/actions";
+import { assignGroupsRandomly, assignTeamToGroup, createManualTeam, deleteTeam, generateTeamsFromApprovedPlayers } from "@/app/admin/actions";
 import { AdminShell } from "@/components/admin-shell";
 import { Card } from "@/components/ui/card";
 import { getAdminPlayers, getAdminTeams } from "@/lib/admin-data";
@@ -11,21 +11,20 @@ export default async function AdminPairingPage() {
   const eligibleTeams = teams.filter((t) => t.status === "Đủ điều kiện");
   const groupA = eligibleTeams.filter((t) => t.eventType === "Bảng A");
   const groupB = eligibleTeams.filter((t) => t.eventType === "Bảng B");
-  const ungrouped = eligibleTeams.filter((t) => t.eventType !== "Bảng A" && t.eventType !== "Bảng B");
   const hasGroups = groupA.length > 0 || groupB.length > 0;
 
   return (
     <AdminShell title="Ghép cặp thi đấu">
       <div className="mt-6 grid gap-6">
 
-        {/* Group assignment section */}
+        {/* === PHÂN BẢNG === */}
         <Card>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h3 className="text-xl font-bold">Phân bảng thi đấu</h3>
               <p className="mt-1 text-sm text-mutedForeground">
-                Chia {eligibleTeams.length} đội đủ điều kiện thành Bảng A và Bảng B, mỗi bảng thi đấu vòng tròn.
-                Top 2 mỗi bảng (theo thắng/thua → hiệu số) sẽ vào vòng tiếp theo.
+                Chia {eligibleTeams.length} đội vào Bảng A / B thi đấu vòng tròn.
+                Top 2 mỗi bảng (điểm → hiệu số) vào vòng tiếp theo.
               </p>
             </div>
             <form action={assignGroupsRandomly}>
@@ -35,51 +34,92 @@ export default async function AdminPairingPage() {
             </form>
           </div>
 
-          {hasGroups ? (
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {[
-                { label: "Bảng A", teams: groupA, color: "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800" },
-                { label: "Bảng B", teams: groupB, color: "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800" }
-              ].map(({ label, teams: groupTeams, color }) => (
-                <div className={`rounded-lg border p-4 ${color}`} key={label}>
-                  <p className="mb-3 text-sm font-black uppercase tracking-wider text-mutedForeground">{label} — {groupTeams.length} đội</p>
-                  <div className="space-y-2">
-                    {groupTeams.length === 0 && <p className="text-sm text-mutedForeground italic">Chưa có đội</p>}
-                    {groupTeams.map((team, i) => (
-                      <div className="flex items-center gap-3" key={team.id}>
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black shadow dark:bg-white/10">{i + 1}</span>
-                        <div>
-                          <p className="text-sm font-bold">{team.name}</p>
-                          <p className="text-xs text-mutedForeground">{team.members.join(" - ")}</p>
+          {/* Bảng A + B hiển thị song song */}
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {[
+              { label: "Bảng A", groupTeams: groupA, color: "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30" },
+              { label: "Bảng B", groupTeams: groupB, color: "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30" }
+            ].map(({ label, groupTeams, color }) => (
+              <div className={`rounded-lg border p-4 ${color}`} key={label}>
+                <p className="mb-3 text-xs font-black uppercase tracking-widest text-mutedForeground">
+                  {label} — {groupTeams.length} đội
+                </p>
+                {groupTeams.length === 0
+                  ? <p className="text-sm italic text-mutedForeground">Chưa có đội</p>
+                  : (
+                    <div className="space-y-2">
+                      {groupTeams.map((team, i) => (
+                        <div className="flex items-center gap-2" key={team.id}>
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black shadow dark:bg-white/10">
+                            {i + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-bold">{team.name}</p>
+                            <p className="truncate text-xs text-mutedForeground">{team.members.join(" - ")}</p>
+                          </div>
+                          {/* Chuyển bảng nhanh */}
+                          <form action={assignTeamToGroup}>
+                            <input type="hidden" name="teamId" value={team.id} />
+                            <input type="hidden" name="group" value={label === "Bảng A" ? "Bảng B" : "Bảng A"} />
+                            <button
+                              className="rounded bg-white px-2 py-1 text-xs font-semibold shadow hover:bg-gray-100 dark:bg-white/10 dark:hover:bg-white/20"
+                              title={`Chuyển sang ${label === "Bảng A" ? "Bảng B" : "Bảng A"}`}
+                            >
+                              → {label === "Bảng A" ? "B" : "A"}
+                            </button>
+                          </form>
                         </div>
+                      ))}
+                    </div>
+                  )}
+              </div>
+            ))}
+          </div>
+
+          {/* Đội chưa được chia bảng */}
+          {eligibleTeams.filter((t) => t.eventType !== "Bảng A" && t.eventType !== "Bảng B").length > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-black uppercase tracking-widest text-mutedForeground">Chưa vào bảng nào</p>
+              <div className="space-y-2">
+                {eligibleTeams
+                  .filter((t) => t.eventType !== "Bảng A" && t.eventType !== "Bảng B")
+                  .map((team) => (
+                    <div className="flex items-center gap-3 rounded-md border border-dashed border-border p-3" key={team.id}>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold">{team.name}</p>
+                        <p className="truncate text-xs text-mutedForeground">{team.members.join(" - ")}</p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-4 rounded-md border border-dashed border-border p-6 text-center text-sm text-mutedForeground">
-              {eligibleTeams.length === 0
-                ? "Chưa có đội đủ điều kiện. Hãy tạo đội trước rồi mới chia bảng."
-                : `Có ${eligibleTeams.length} đội đủ điều kiện chưa được chia bảng. Nhấn "Chia bảng ngẫu nhiên" để bắt đầu.`}
+                      <div className="flex gap-2">
+                        {["Bảng A", "Bảng B"].map((g) => (
+                          <form action={assignTeamToGroup} key={g}>
+                            <input type="hidden" name="teamId" value={team.id} />
+                            <input type="hidden" name="group" value={g} />
+                            <button className="rounded bg-court-blue px-2 py-1 text-xs font-bold text-white">
+                              + {g}
+                            </button>
+                          </form>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
 
-          {ungrouped.length > 0 && hasGroups && (
-            <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm dark:border-yellow-800 dark:bg-yellow-950/30">
-              <span className="font-bold text-yellow-700 dark:text-yellow-400">⚠ {ungrouped.length} đội chưa được chia bảng:</span>{" "}
-              {ungrouped.map((t) => t.name).join(", ")}
+          {!hasGroups && eligibleTeams.length === 0 && (
+            <div className="mt-4 rounded-md border border-dashed border-border p-6 text-center text-sm text-mutedForeground">
+              Chưa có đội đủ điều kiện. Tạo đội bên dưới rồi mới chia bảng.
             </div>
           )}
         </Card>
 
+        {/* === ĐỘI HIỆN CÓ + TẠO THỦ CÔNG === */}
         <div className="grid gap-6 xl:grid-cols-2">
           <Card>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold">Đội/cặp hiện có</h3>
-                <p className="mt-2 text-sm text-mutedForeground">Có thể tạo đội đơn, đội đôi hoặc nhóm bất kỳ để admin xếp trận tự do.</p>
+                <p className="mt-2 text-sm text-mutedForeground">Quản lý tất cả đội, gán bảng thủ công hoặc xóa.</p>
               </div>
               <form action={generateTeamsFromApprovedPlayers}>
                 <button className="rounded-md bg-court-blue px-4 py-2 text-sm font-bold text-white">Ghép theo trình độ</button>
@@ -88,18 +128,39 @@ export default async function AdminPairingPage() {
             <div className="mt-4 space-y-3">
               {teams.length === 0 && <p className="text-sm text-mutedForeground">Chưa có đội/cặp thi đấu trong database.</p>}
               {teams.map((team) => (
-                <div className="rounded-md border border-border p-4" key={team.id}>
+                <div className="rounded-md border border-border p-3" key={team.id}>
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-bold">{team.name}</p>
                       <p className="text-sm text-mutedForeground">{team.members.join(" - ") || "Chưa có thành viên"}</p>
-                      <p className="mt-1 text-xs font-semibold text-court-blue">{team.eventType}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-md bg-muted px-3 py-1 text-xs font-bold">{team.status}</span>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      {/* Dropdown gán bảng */}
+                      {team.status === "Đủ điều kiện" && (
+                        <form action={assignTeamToGroup} className="flex items-center gap-1">
+                          <input type="hidden" name="teamId" value={team.id} />
+                          <select
+                            name="group"
+                            defaultValue={team.eventType === "Bảng A" || team.eventType === "Bảng B" ? team.eventType : ""}
+                            className="h-7 rounded border border-border px-1 text-xs dark:bg-white/5"
+                          >
+                            <option value="">-- Bảng --</option>
+                            <option value="Bảng A">Bảng A</option>
+                            <option value="Bảng B">Bảng B</option>
+                          </select>
+                          <button className="rounded bg-court-blue px-2 py-1 text-xs font-bold text-white">Gán</button>
+                        </form>
+                      )}
+                      <span className={`rounded-md px-2 py-1 text-xs font-bold ${
+                        team.eventType === "Bảng A" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                        : team.eventType === "Bảng B" ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                        : "bg-muted"
+                      }`}>
+                        {team.eventType}
+                      </span>
                       <form action={deleteTeam}>
                         <input name="teamId" type="hidden" value={team.id} />
-                        <button className="rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white">Xóa</button>
+                        <button className="rounded-md bg-red-600 px-2 py-1 text-xs font-bold text-white">Xóa</button>
                       </form>
                     </div>
                   </div>
@@ -117,7 +178,7 @@ export default async function AdminPairingPage() {
               </label>
               <label className="grid gap-2 text-sm font-semibold">
                 Nhãn đội/cặp
-                <input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="eventType" placeholder="Ví dụ: Tự do, Trình khá, Đội nam/nữ..." defaultValue="Tự do" />
+                <input className="h-10 rounded-md border border-border px-3 dark:bg-white/5" name="eventType" placeholder="Ví dụ: Tự do, Bảng A, Bảng B..." defaultValue="Tự do" />
               </label>
               <label className="grid gap-2 text-sm font-semibold">
                 Trạng thái
@@ -133,7 +194,7 @@ export default async function AdminPairingPage() {
                     <option key={player.id} value={player.id}>{player.fullName} - {player.level}</option>
                   ))}
                 </select>
-                <span className="text-xs font-normal text-mutedForeground">Giữ Ctrl để chọn nhiều người. Có thể chọn 1 người cho đánh đơn hoặc nhiều người cho đánh đôi/nhóm.</span>
+                <span className="text-xs font-normal text-mutedForeground">Giữ Ctrl để chọn nhiều người.</span>
               </label>
               <button className="w-fit rounded-md bg-court-green px-4 py-2 text-sm font-bold text-white" type="submit">Tạo thủ công</button>
             </form>
@@ -141,7 +202,6 @@ export default async function AdminPairingPage() {
 
           <Card className="xl:col-span-2">
             <h3 className="text-xl font-bold">Danh sách vận động viên đã duyệt</h3>
-            <p className="mt-2 text-sm text-mutedForeground">Dùng danh sách này để tự chọn người vào đội/cặp theo trình độ, không bị khóa theo đơn/đôi/nam/nữ.</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {approvedPlayers.length === 0 && <p className="text-sm text-mutedForeground">Chưa có vận động viên đã duyệt.</p>}
               {approvedPlayers.map((player) => (
